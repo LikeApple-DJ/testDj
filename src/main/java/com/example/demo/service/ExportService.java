@@ -1,14 +1,16 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.ApiCallLog;
+import com.example.demo.exception.BusinessException;
 import com.example.demo.repository.ApiCallLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ExportService {
+
+    private static final int MAX_EXPORT_SIZE = 10000;
 
     private final ApiCallLogRepository repository;
 
@@ -19,9 +21,9 @@ public class ExportService {
     public String exportToCsv(String type) {
         List<ApiCallLog> logs = repository.findByApiNameOrderByCallTimeDesc(type);
 
-        // Limit to 10000 records
-        if (logs.size() > 10000) {
-            logs = logs.subList(0, 10000);
+        // Limit to MAX_EXPORT_SIZE records
+        if (logs.size() > MAX_EXPORT_SIZE) {
+            logs = logs.subList(0, MAX_EXPORT_SIZE);
         }
 
         StringBuilder sb = new StringBuilder();
@@ -70,17 +72,7 @@ public class ExportService {
                 }
                 break;
             default:
-                sb.append("call_time,user_id,user_type,user_level,user_dept,request,response\n");
-                for (ApiCallLog log : logs) {
-                    sb.append(escapeCsv(log.getCallTime()))
-                      .append(",").append(escapeCsv(log.getUserId()))
-                      .append(",").append(escapeCsv(log.getUserType()))
-                      .append(",").append(escapeCsv(log.getUserLevel()))
-                      .append(",").append(escapeCsv(log.getUserDept()))
-                      .append(",").append(escapeCsv(log.getRequestBody()))
-                      .append(",").append(escapeCsv(log.getResponseBody()))
-                      .append("\n");
-                }
+                throw new BusinessException("EXPORT_001", "type 参数不合法，必须为 hello/hash/bubble-sort");
         }
 
         return sb.toString();

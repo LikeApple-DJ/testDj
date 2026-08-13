@@ -14,6 +14,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Aspect
 @Component
@@ -56,7 +57,7 @@ public class ApiCallLogAspect {
                 apiCallLog.setUserId("anonymous");
             }
 
-            apiCallLog.setCallTime(LocalDateTime.now());
+            apiCallLog.setCallTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
 
             // Serialize request body
             try {

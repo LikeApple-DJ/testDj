@@ -1,7 +1,15 @@
 package com.example.demo.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "api_call_log")
@@ -45,13 +53,13 @@ public class ApiCallLog {
 
     @PrePersist
     protected void onCreate() {
-        gmtCreate = LocalDateTime.now();
-        gmtModified = LocalDateTime.now();
+        gmtCreate = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        gmtModified = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
     }
 
     @PreUpdate
     protected void onUpdate() {
-        gmtModified = LocalDateTime.now();
+        gmtModified = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
     }
 
     // Getters and Setters

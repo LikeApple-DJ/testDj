@@ -2,10 +2,12 @@ package com.example.demo.service;
 
 import com.example.demo.dto.StatisticsResponse;
 import com.example.demo.dto.StatisticsResponse.DimensionItem;
+import com.example.demo.exception.BusinessException;
 import com.example.demo.repository.ApiCallLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +35,7 @@ public class StatisticsService {
                 rawResults = (since != null) ? repository.countByUserDeptSince(since) : repository.countByUserDept();
                 break;
             default:
-                throw new IllegalArgumentException("Unsupported dimension: " + dimension);
+                throw new BusinessException("STAT_001", "dimension 参数不合法，必须为 userType/userLevel/userDept");
         }
 
         List<DimensionItem> data = new ArrayList<>();
@@ -52,7 +54,7 @@ public class StatisticsService {
         if (period == null || "all".equalsIgnoreCase(period)) {
             return null;
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         return switch (period.toLowerCase()) {
             case "7d" -> now.minusDays(7);
             case "30d" -> now.minusDays(30);

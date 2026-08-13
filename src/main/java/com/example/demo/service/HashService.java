@@ -1,33 +1,47 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.HashResponse;
+import com.example.demo.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Set;
 
 @Service
 public class HashService {
 
+    private static final Logger log = LoggerFactory.getLogger(HashService.class);
+    private static final Set<String> SUPPORTED_ALGORITHMS = Set.of("MD5", "SHA-1", "SHA-256");
+
     public HashResponse computeHash(String input, String algorithm) {
+        if (input == null || input.isEmpty()) {
+            throw new BusinessException("BIZ_002", "input 不能为空");
+        }
+        if (algorithm == null || algorithm.isBlank()) {
+            throw new BusinessException("BIZ_003", "algorithm 不能为空");
+        }
+
+        String normalizedAlgorithm = normalizeAlgorithm(algorithm);
         try {
-            String normalizedAlgorithm = normalizeAlgorithm(algorithm);
             MessageDigest digest = MessageDigest.getInstance(normalizedAlgorithm);
             byte[] hashBytes = digest.digest(input.getBytes());
             String hash = bytesToHex(hashBytes);
             return new HashResponse(input, algorithm, hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalArgumentException("Unsupported algorithm: " + algorithm);
+            log.warn("Unsupported algorithm: {}", algorithm, e);
+            throw new BusinessException("BIZ_003", "不支持的算法: " + algorithm);
         }
     }
 
     private String normalizeAlgorithm(String algorithm) {
-        return switch (algorithm.toUpperCase()) {
-            case "MD5" -> "MD5";
-            case "SHA-1" -> "SHA-1";
-            case "SHA-256" -> "SHA-256";
-            default -> algorithm;
-        };
+        String upper = algorithm.toUpperCase();
+        if (!SUPPORTED_ALGORITHMS.contains(upper)) {
+            throw new BusinessException("BIZ_003", "algorithm 必须为 MD5/SHA-1/SHA-256 之一");
+        }
+        return upper;
     }
 
     private String bytesToHex(byte[] bytes) {
