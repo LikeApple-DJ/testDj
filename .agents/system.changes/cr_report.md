@@ -1,284 +1,216 @@
 # 代码评审报告 (Code Review Report)
 
-> **评审日期**: 2025-07-14  
-> **评审范围**: testDj-main (后端) + testDJnew-main (前端)  
-> **需求**: 三接口 (HelloWorld / SHA-256 Hash / Bubble Sort) + 前端三Tab页 + 导出Excel  
-> **评审人**: DTCoder
+> **评审阶段:** loop-2 (代码评审)
+> **评审范围:** testDj-main (后端) + testDJnew-main (前端)
+> **需求:** 三接口 (HelloWorld / SHA-256 Hash / Bubble Sort) + 前端三Tab页 + 导出Excel
+> **评审日期:** 2025-01
 
 ---
 
-## 1. 评审摘要
+## 一、评审概要
 
-| 指标 | 数量 |
+### 本次变更规模
+| 维度 | 数据 |
 |------|------|
-| 🔴 blocker (必须修复) | 2 |
-| 🟡 important (建议修复) | 4 |
-| 🟢 nit (可选优化) | 7 |
-| **合计** | **13** |
+| 涉及仓库 | 2 (testDj-main, testDJnew-main) |
+| 新增文件 | 17 个 |
+| 后端 | 11 个文件 (pom.xml, DemoApplication.java, application.yml, 3 Controller, 5 DTO, 1 Service) |
+| 前端 | 6 个文件 (index.html, package.json, vite.config.js, main.js, App.vue, DemoPage.vue, 3 Panel 组件, api/index.js) |
+
+### 需求覆盖检查
+| 需求 | 实现状态 | 说明 |
+|------|---------|------|
+| HelloWorld 接口 (GET /api/hello) | ✅ 已实现 | HelloController.java |
+| SHA-256 哈希接口 (POST /api/hash/sha256) | ✅ 已实现 | HashController.java + HashRequest/Response |
+| 冒泡排序接口 (POST /api/sort/bubble) | ✅ 已实现 | SortController.java + SortRequest/Response/Step |
+| 前端三个 Tab | ✅ 已实现 | DemoPage.vue + HelloPanel/HashPanel/SortPanel |
+| 导出按钮 + 导出接口 | ⚠️ 部分实现 | 存在 blocking 问题 (见下文) |
 
 ---
 
-## 2. 后端评审 (testDj-main)
+## 二、缺陷与建议
 
-### 2.1 🔴 [blocking] HashController - `request.getInput()` 可能为 null 导致 NPE
+### 🔴 [blocking] 必须修复 - 1 个
 
-**文件**: `src/main/java/com/example/demo/controller/HashController.java`
+---
 
-**问题**: 当请求体为 `{"input": null}` 时，`request.getInput().getBytes()` 会抛出 NullPointerException。
+#### 🔴 B1: DemoPage.vue 中 ref 位置错误导致导出数据无法获取子组件实例
 
-```java
-byte[] hashBytes = digest.digest(request.getInput().getBytes());  // 潜在 NPE
+**文件:** `[testDJnew] src/components/DemoPage.vue` (第 6-13 行)
+
+**问题描述:**
+```vue
+<el-tab-pane label="Hello World" name="hello">
+  <HelloPanel ref="helloRef" />       <!-- ❌ ref 应放在 HelloPanel 上 -->
+</el-tab-pane>
+<el-tab-pane label="SHA-256 哈希" name="hash">
+  <HashPanel ref="hashRef" />         <!-- ❌ ref 应放在 HashPanel 上 -->
+</el-tab-pane>
+<el-tab-pane label="冒泡排序" name="sort">
+  <SortPanel ref="sortRef" />         <!-- ❌ ref 应放在 SortPanel 上 -->
+</el-tab-pane>
 ```
 
-**修复建议**: 增加输入校验，在方法开头检查 `input` 是否为 null 或空字符串：
+`ref` 放置在 `<el-tab-pane>` 上时，获取的是 Element Plus 的 `ElTabPane` 组件实例，**而非**内部的 `HelloPanel`/`HashPanel`/`SortPanel` 组件实例。因此：
 
+- `hashRef.value?.data` → `undefined`（因为 ElTabPane 实例没有 data 属性）
+- `sortRef.value?.data` → `undefined`
+
+导致导出 hash/sort 类型时，**无法获取当前用户操作的实时数据**，只能回退到后端 `ExportController` 中硬编码的示例数据。
+
+**影响:** 用户在当前 Tab 中操作的数据无法被导出，导出的只是固定示例数据，功能存在严重缺陷。
+
+**修复建议:**
+```vue
+<el-tab-pane label="Hello World" name="hello">
+  <HelloPanel ref="helloRef" />
+</el-tab-pane>
+<el-tab-pane label="SHA-256 哈希" name="hash">
+  <HashPanel ref="hashRef" />
+</el-tab-pane>
+<el-tab-pane label="冒泡排序" name="sort">
+  <SortPanel ref="sortRef" />
+</el-tab-pane>
+```
+
+将 `ref` 从 `<el-tab-pane>` 移动到内部的子组件标签上即可。
+
+---
+
+### 🟡 [important] 建议修复 - 2 个
+
+---
+
+#### 🟡 I1: HashController 缺少全局异常处理，参数校验失败返回 500
+
+**文件:** `[testDj] src/main/java/com/example/demo/controller/HashController.java` (第 18-19 行)
+
+**问题描述:**
 ```java
 if (request.getInput() == null || request.getInput().isBlank()) {
-    throw new IllegalArgumentException("input cannot be null or blank");
+    throw new IllegalArgumentException("input 不能为空");
 }
 ```
 
-或者在 DTO 层使用 `@NotBlank` 注解配合 `@Valid`。
+`IllegalArgumentException` 是运行时异常，没有对应的 `@ExceptionHandler` 或全局 `@ControllerAdvice`，Spring Boot 默认返回 `HTTP 500 Internal Server Error`。语义上应返回 `HTTP 400 Bad Request`。
+
+**影响:** 客户端输入空字符串时收到 500 错误，体验不佳且不符合 RESTful 规范。
+
+**修复建议:**
+- 方式一：创建 `@ControllerAdvice` 全局异常处理器，将 `IllegalArgumentException` 映射为 400
+- 方式二：在 Controller 中捕获并返回 `ResponseEntity.badRequest().body(...)`
 
 ---
 
-### 2.2 🔴 [blocking] HashController - `getBytes()` 未指定字符集
+#### 🟡 I2: ExportService 方法签名抛出 `throws Exception` 过于宽泛
 
-**文件**: `src/main/java/com/example/demo/controller/HashController.java`
+**文件:** `[testDj] src/main/java/com/example/demo/service/ExportService.java` (第 13, 39, 63 行)
 
-**问题**: `request.getInput().getBytes()` 使用平台默认字符集，不同环境（如 Windows GBK vs Linux UTF-8）会产生不同的 SHA-256 哈希值，导致跨环境不一致。
-
+**问题描述:**
 ```java
-byte[] hashBytes = digest.digest(request.getInput().getBytes());  // 平台依赖
+public byte[] generateHelloExcel() throws Exception { ... }
+public byte[] generateHashExcel(String input, String hash) throws Exception { ... }
+public byte[] generateSortExcel(int[] original, int[] sorted, int swaps) throws Exception { ... }
 ```
 
-**修复建议**: 显式指定 UTF-8 字符集：
+三个方法均抛出 `throws Exception`，是宽泛的异常声明，无法区分具体异常类型（IOException、POI 异常等），且调用方必须用通用 catch 处理。
 
-```java
-import java.nio.charset.StandardCharsets;
-byte[] hashBytes = digest.digest(request.getInput().getBytes(StandardCharsets.UTF_8));
-```
+**影响:** 降低代码可维护性，异常分类不清晰。
 
----
-
-### 2.3 🟡 [important] ExportController - Hash/Sort 导出使用硬编码示例数据
-
-**文件**: `src/main/java/com/example/demo/controller/ExportController.java`
-
-**问题**: 需求要求「支持导出各个页面的展示结果」，但 hash 和 sort 导出使用的是硬编码示例数据而非用户实际结果：
-
-- hash 导出: `"示例字符串"` + 固定哈希值
-- sort 导出: 固定数组 `{64, 34, 25, 12, 22, 11, 90}`
-
-唯一正确的只有 hello 导出（每次返回当前时间戳）。
-
-**修复建议**: 设计方案中存在接口设计缺口——导出接口未接收用户当前数据。建议：
-1. 方案A: 前端在调用导出时，将当前展示的数据作为参数传递给后端
-2. 方案B: 导出接口增加可选参数（如 `input`、`hash`、`original` 等），由前端传入当前展示结果
+**修复建议:** 抛出具体异常类型 (如 `IOException`)，或在方法内部捕获并转换为自定义运行时异常。
 
 ---
 
-### 2.4 🟡 [important] ExportController - 异常声明过于宽泛
-
-**文件**: `src/main/java/com/example/demo/controller/ExportController.java`
-
-**问题**: `throws Exception` 将异常处理责任推向调用方，不符合 Spring Boot 最佳实践。应使用具体异常类型或通过 `@ControllerAdvice` 全局处理。
-
-```java
-public ResponseEntity<byte[]> export(@RequestParam String type) throws Exception {
-```
-
-**修复建议**: 使用 try-catch 包装具体异常，或声明具体异常类型。
+### 🟢 [nit] 非阻塞建议 - 3 个
 
 ---
 
-### 2.5 🟡 [important] ExportController - 使用字段注入而非构造器注入
+#### 🟢 N1: 部分 DTO 类缺少中文注释
 
-**文件**: `src/main/java/com/example/demo/controller/ExportController.java`
+**文件:**
+- `[testDj] src/main/java/com/example/demo/dto/HashRequest.java`
+- `[testDj] src/main/java/com/example/demo/dto/HashResponse.java`
+- `[testDj] src/main/java/com/example/demo/dto/SortResponse.java`
+- `[testDj] src/main/java/com/example/demo/dto/SortStep.java`
 
-**问题**: 使用了 `@Autowired` 字段注入，不符合 Spring 官方推荐的构造器注入模式。
-
-```java
-@Autowired
-private ExportService exportService;
-```
-
-**修复建议**: 改为构造器注入：
-
-```java
-private final ExportService exportService;
-
-public ExportController(ExportService exportService) {
-    this.exportService = exportService;
-}
-```
+**建议:** 为类和关键字段补充中文注释，与 `SortRequest.java` 保持一致。
 
 ---
 
-### 2.6 🟡 [important] 缺少测试文件
+#### 🟢 N2: 前端 exportData API 参数隐式依赖 Axios 展开
 
-**问题**: 所有 Controller 和 Service 均缺少单元测试/集成测试。关键业务逻辑（哈希计算、冒泡排序、Excel 生成）无测试覆盖。
+**文件:** `[testDJnew] src/api/index.js` (第 24-29 行)
 
-**修复建议**: 为每个 Controller 和 Service 编写至少一个正向测试用例，覆盖核心功能路径。
-
----
-
-### 2.7 🟢 [nit] ExportService - 三个导出方法代码重复
-
-**文件**: `src/main/java/com/example/demo/service/ExportService.java`
-
-**问题**: `generateHelloExcel`、`generateHashExcel`、`generateSortExcel` 三个方法结构高度相似（创建工作簿、创建表头、写入数据行、输出字节数组），存在大量重复代码。
-
-**修复建议**: 抽取公共方法 `generateExcel(String sheetName, String[] headers, String[] dataRow)` 减少重复。
-
----
-
-### 2.8 🟢 [nit] ExportService - 未设置列宽
-
-**文件**: `src/main/java/com/example/demo/service/ExportService.java`
-
-**问题**: 导出的 Excel 未设置列宽，可能导致长内容（如哈希值、数组字符串）被截断。
-
-**修复建议**: 在写入数据后调用 `sheet.autoSizeColumn(columnIndex)` 或设置固定列宽。
-
----
-
-### 2.9 🟢 [nit] DTO 设计风格不一致
-
-**文件**: 
-- `src/main/java/com/example/demo/dto/HashResponse.java` - 仅有构造器 + getter
-- `src/main/java/com/example/demo/dto/SortResponse.java` - 有无参构造器 + getter/setter
-- `src/main/java/com/example/demo/dto/SortStep.java` - 仅有构造器 + getter
-
-**问题**: 三个 DTO 采用了不同的设计模式，缺乏一致性。HashResponse 和 SortStep 使用有参构造器，SortResponse 使用无参构造器 + setter。
-
-**修复建议**: 统一使用 Java 17 Record 简化 DTO，或统一使用一种设计模式。
-
----
-
-### 2.10 🟢 [nit] pom.xml 缺少 sourceEncoding 配置
-
-**文件**: `pom.xml`
-
-**问题**: 未显式设置 `<project.build.sourceEncoding>`，可能导致构建时字符集不一致。
-
-**修复建议**: 在 `<properties>` 中添加：
-```xml
-<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-```
-
----
-
-### 2.11 🟢 [nit] SortController - 每次请求创建新 Random 实例
-
-**文件**: `src/main/java/com/example/demo/controller/SortController.java`
-
-**问题**: 每次请求都创建新的 `Random` 实例，可复用类级 Random 实例。
-
-```java
-Random rand = new Random();
-```
-
-**修复建议**: 声明为类级常量：
-```java
-private static final Random RAND = new Random();
-```
-
----
-
-## 3. 前端评审 (testDJnew-main)
-
-### 3.1 🟢 [nit] DemoPage.vue - typeMap 冗余映射
-
-**文件**: `src/components/DemoPage.vue`
-
-**问题**: `typeMap` 将每个值映射到自身：
+**问题描述:**
 ```javascript
-const typeMap = { hello: 'hello', hash: 'hash', sort: 'sort' }
+export function exportData(params) {
+  return api.get('/export', {
+    params: params,
+    responseType: 'blob'
+  })
+}
 ```
-而后使用 `typeMap[activeTab.value]` 等效于直接使用 `activeTab.value`。
 
-**修复建议**: 移除 typeMap，直接使用 `activeTab.value` 作为导出参数。
+`params` 对象被 Axios 展开为 URL 查询参数，与后端 `@RequestParam` 形成隐式耦合。缺少参数名映射层，后端参数名变更时前端不会报错但会静默失效。
 
----
-
-### 3.2 🟢 [nit] DemoPage.vue - 模板 ref 未使用
-
-**文件**: `src/components/DemoPage.vue`
-
-**问题**: 组件上定义了 `ref`（`helloRef`、`hashRef`、`sortRef`），但在 `<script setup>` 中从未访问这些引用，属于无用代码。
-
-**修复建议**: 移除不需要的 `ref` 属性。
+**建议:** 可考虑添加参数名映射或 TypeScript 接口定义增强类型安全。
 
 ---
 
-### 3.3 🟢 [nit] 缺少错误重试机制
+#### 🟢 N3: ExportService 中三个导出方法存在代码重复
 
-**文件**: `src/components/HelloPanel.vue`, `src/components/HashPanel.vue`, `src/components/SortPanel.vue`
+**文件:** `[testDj] src/main/java/com/example/demo/service/ExportService.java`
 
-**问题**: 各 Panel 在请求失败时仅显示错误消息，未提供重试按钮或自动重试机制。
+**问题描述:** `generateHelloExcel`、`generateHashExcel`、`generateSortExcel` 三个方法结构高度相似（创建工作簿、创建表头行、写入数据行、自动列宽、输出字节数组），存在重复代码。
 
-**修复建议**: 考虑在错误提示中加入重试按钮，提升用户体验。
-
----
-
-### 3.4 🟢 [nit] HashPanel - 未对输入做 trim 处理
-
-**文件**: `src/components/HashPanel.vue`
-
-**问题**: 用户输入的前后空格未做处理，可能导致意外的哈希结果（如 `"abc"` vs `" abc "` 哈希值不同）。
-
-**修复建议**: 在发送请求前对输入做 `.trim()` 处理。
+**建议:** 抽取公共方法 `generateExcel(String sheetName, String[] headers, String[] dataRow)` 减少重复。
 
 ---
 
-## 4. 跨仓对齐点检查
+## 三、跨仓接口契约对齐检查
 
-| 对齐点 | 预期 | 实际 | 结论 |
-|--------|------|------|------|
-| API 路径: `/api/hello` | `GET` | `GET /api/hello` | ✅ 一致 |
-| API 路径: `/api/hash/sha256` | `POST` | `POST /api/hash/sha256` | ✅ 一致 |
-| API 路径: `/api/sort/bubble` | `POST` | `POST /api/sort/bubble` | ✅ 一致 |
-| API 路径: `/api/export?type=` | `GET` | `GET /api/export?type=` | ✅ 一致 |
-| 请求 JSON 格式: Hash | `{"input": "..."}` | `{"input": "..."}` | ✅ 一致 |
-| 请求 JSON 格式: Sort | `{"arraySize": 10, "min": 1, "max": 100}` | 同设计 | ✅ 一致 |
-| 响应 JSON 格式: Hello | `{"message", "timestamp"}` | 同设计 | ✅ 一致 |
-| 响应 JSON 格式: Hash | `{"input", "algorithm", "hash"}` | 同设计 | ✅ 一致 |
-| 响应 JSON 格式: Sort | `{"originalArray", "sortedArray", "steps", "totalRounds", "swapCount"}` | 同设计 | ✅ 一致 |
-| 导出 Content-Type | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | 同设计 | ✅ 一致 |
-| 前端代理 | `/api` → `http://localhost:8080` | 同设计 | ✅ 一致 |
-| 导出参数 | `type=hello\|hash\|sort` | 同设计 | ✅ 一致 |
+| 对齐项 | 后端 (testDj-main) | 前端 (testDJnew-main) | 状态 |
+|--------|-------------------|----------------------|------|
+| GET /api/hello | HelloController.java | `api/index.js` → `getHello()` | ✅ 一致 |
+| POST /api/hash/sha256 | HashController.java | `api/index.js` → `getHash(input)` | ✅ 一致 |
+| POST /api/sort/bubble | SortController.java | `api/index.js` → `getBubbleSort(params)` | ✅ 一致 |
+| GET /api/export?type= | ExportController.java | `api/index.js` → `exportData(params)` | ✅ 一致 |
+| 请求体 JSON 格式 | HashRequest/SortRequest | 前端 JS 对象 | ✅ 一致 |
+| 响应 JSON 格式 | 各 Response DTO | 前端直接消费 | ✅ 一致 |
+| 导出 Content-Type | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | Blob 接收 | ✅ 一致 |
+| 导出参数 | type/input/hash/original/sorted/swaps | params 对象展开 | ✅ 一致 |
+| 端口/代理 | 8080 | Vite proxy → 8080 | ✅ 一致 |
 
-**跨仓对齐结论**: ✅ 全部对齐，接口契约一致。
+**跨仓对齐结论:** ✅ 全部对齐，接口路径、请求/响应格式、导出参数名均一致。
 
 ---
 
-## 5. 总结
+## 四、代码质量亮点
 
-### 需要立即修复的 blocker（2个）
+1. **构造器注入替代 @Autowired** — ExportController 使用了构造器注入，符合 Spring 官方推荐
+2. **输入校验** — HashController 做了 null/blank 校验，SortController 处理了 nullable 请求体
+3. **显式指定字符集** — HashController 使用 `StandardCharsets.UTF_8`，确保跨平台哈希一致性
+4. **try-with-resources** — ExportService 使用 try-with-resources 自动关闭 Workbook
+5. **defineExpose 暴露组件数据** — 三个 Panel 组件均通过 `defineExpose` 暴露数据供父组件导出使用（设计思路正确，但 ref 位置有 bug）
+6. **自动列宽** — ExportService 导出的 Excel 通过 `autoSizeColumn` 自动调整列宽
+7. **前端 trim 处理** — HashPanel 对输入做了 trim 处理，避免多余空格导致哈希结果不一致
+8. **静态 Random 复用** — SortController 使用静态 Random 实例避免每次请求创建新对象
+9. **前端导出传递实时数据** — DemoPage.vue 的 handleExport 将当前组件数据作为参数传递给后端（设计正确，但 ref 绑定位置错误导致未生效）
+10. **pom.xml 配置完整** — 包含 sourceEncoding 配置、Apache POI 5.2.5 依赖
 
-| # | 文件 | 问题 | 严重性 |
-|---|------|------|--------|
-| 1 | `[testDj] HashController.java` | `request.getInput()` 可能为 null 导致 NPE | 🔴 blocking |
-| 2 | `[testDj] HashController.java` | `getBytes()` 未指定字符集，跨环境不一致 | 🔴 blocking |
+---
 
-### 建议修复的 important 问题（4个）
+## 五、评审结论
 
-| # | 文件 | 问题 | 严重性 |
-|---|------|------|--------|
-| 3 | `[testDj] ExportController.java` | Hash/Sort 导出使用硬编码示例数据 | 🟡 important |
-| 4 | `[testDj] ExportController.java` | `throws Exception` 异常声明过于宽泛 | 🟡 important |
-| 5 | `[testDj] ExportController.java` | 使用字段注入而非构造器注入 | 🟡 important |
-| 6 | `[testDj]` 全局 | 缺少单元测试/集成测试 | 🟡 important |
+| 类别 | 数量 |
+|------|------|
+| 🔴 blocking | 1 |
+| 🟡 important | 2 |
+| 🟢 nit | 3 |
+| **总计** | **6** |
 
-### 可选优化（7个）
+### 最终决定: 🔄 需要修复 (Request Changes)
 
-| # | 文件 | 问题 | 严重性 |
-|---|------|------|--------|
-| 7 | `[testDj] ExportService.java` | 三个导出方法代码重复 | 🟢 nit |
-| 8 | `[testDj] ExportService.java` | 未设置列宽 | 🟢 nit |
-| 9 | `[testDj]` DTO 文件 | 设计风格不一致 | 🟢 nit |
-| 10 | `[testDj] pom.xml` | 缺少 sourceEncoding | 🟢 nit |
-| 11 | `[testDj] SortController.java` | 每次请求创建新 Random | 🟢 nit |
-| 12 | `[testDJnew] DemoPage.vue` | typeMap 冗余 + 未使用的 ref | 🟢 nit |
-| 13 | `[testDJnew]` 各 Panel | 缺少错误重试/输入 trimming | 🟢 nit |
+🔴 **B1** 必须在合并前修复——否则导出功能在 hash 和 sort 模式下无法获取用户当前数据，只能导出后端硬编码示例数据，功能存在严重缺陷。
+
+🟡 **I1、I2** 建议修复以提升代码鲁棒性和可维护性。

@@ -56,5 +56,5 @@
     "summary": "用户已确认全部3项待定事项：冒泡排序默认参数（10, 1-100）、Excel三列格式、端口代理转发配置。设计文档已更新，可进入实施计划阶段。"
   },
   "design_doc": ".agents/system.changes/dima.md",
-  "blocker_count": 2
+  "blocker_count": 1
 }
