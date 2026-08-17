@@ -10,6 +10,9 @@ import java.util.*;
 @RequestMapping("/api/sort")
 public class SortController {
 
+    // 复用 Random 实例，避免每次请求创建新对象
+    private static final Random RAND = new Random();
+
     @PostMapping("/bubble")
     public SortResponse bubbleSort(@RequestBody(required = false) SortRequest request) {
         // 默认参数
@@ -18,7 +21,7 @@ public class SortController {
         int max = (request != null && request.getMax() != null) ? request.getMax() : 100;
 
         // 生成随机数组
-        Random rand = new Random();
+        Random rand = RAND;
         int[] arr = new int[size];
         for (int i = 0; i < size; i++) {
             arr[i] = rand.nextInt(max - min + 1) + min;

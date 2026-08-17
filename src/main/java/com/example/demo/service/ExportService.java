@@ -25,6 +25,11 @@ public class ExportService {
             row.createCell(1).setCellValue("Hello World!");
             row.createCell(2).setCellValue(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
+            // 自动调整列宽
+            for (int i = 0; i < 3; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
             return out.toByteArray();
@@ -43,6 +48,11 @@ public class ExportService {
             row.createCell(0).setCellValue("SHA-256 哈希");
             row.createCell(1).setCellValue("输入: " + input + " | 哈希值: " + hash);
             row.createCell(2).setCellValue(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+            // 自动调整列宽
+            for (int i = 0; i < 3; i++) {
+                sheet.autoSizeColumn(i);
+            }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
@@ -64,6 +74,11 @@ public class ExportService {
                 + " | 排序后: " + java.util.Arrays.toString(sorted)
                 + " | 交换次数: " + swaps);
             row.createCell(2).setCellValue(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+            // 自动调整列宽
+            for (int i = 0; i < 3; i++) {
+                sheet.autoSizeColumn(i);
+            }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
