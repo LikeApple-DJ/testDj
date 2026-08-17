@@ -4,13 +4,14 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
 public class ExportService {
 
-    public byte[] generateHelloExcel() throws Exception {
+    public byte[] generateHelloExcel() throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Hello World");
             // 表头
@@ -36,7 +37,7 @@ public class ExportService {
         }
     }
 
-    public byte[] generateHashExcel(String input, String hash) throws Exception {
+    public byte[] generateHashExcel(String input, String hash) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("SHA-256 哈希");
             Row header = sheet.createRow(0);
@@ -60,7 +61,7 @@ public class ExportService {
         }
     }
 
-    public byte[] generateSortExcel(int[] original, int[] sorted, int swaps) throws Exception {
+    public byte[] generateSortExcel(int[] original, int[] sorted, int swaps) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("冒泡排序");
             Row header = sheet.createRow(0);
