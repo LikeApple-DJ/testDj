@@ -121,7 +121,7 @@ App.vue
 | 导出文件类型 | 后端生成 Excel，前端接收文件流 | Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
 | 导出参数 | 前端传入 `type` 参数 | `type=hello|hash|sort` |
 
-## 五、待确认事项
-- [ ] 冒泡排序的随机数组默认参数范围（默认大小 10，范围 1-100）
-- [ ] 导出 Excel 的列名和格式细节
-- [ ] 端口配置（后端默认 8080，前端是否使用代理转发）
+## 五、已确认事项
+- [x] 冒泡排序的随机数组默认参数：默认大小 10，范围 1-100（用户已确认）
+- [x] 导出 Excel 的列名和格式：三列（Tab 名称、数据内容、时间戳）（用户已确认）
+- [x] 端口配置：后端 8080，前端 Vite 开发服务器 5173 通过 proxy 代理转发到 8080（用户已确认）

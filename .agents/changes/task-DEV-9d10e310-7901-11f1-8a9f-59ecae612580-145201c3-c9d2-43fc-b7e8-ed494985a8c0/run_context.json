@@ -43,10 +43,17 @@
       "export_format": "Excel (.xlsx)"
     }
   },
-  "pending_confirmations": [
-    "冒泡排序随机数组默认参数（大小10，范围1-100）",
-    "Excel列名和格式细节",
-    "端口配置（后端8080，前端代理转发）"
+  "pending_confirmations": [],
+  "confirmed_decisions": [
+    "冒泡排序随机数组默认参数：大小10，范围1-100（用户已确认默认参数方案）",
+    "Excel列名和格式：三列（Tab名称、数据内容、时间戳）（用户已确认当前设计）",
+    "端口配置：后端8080，前端Vite 5173 proxy转发到8080（用户已确认当前方案）"
   ],
+  "step_review": {
+    "stage": "需求澄清",
+    "loop": "loop-1",
+    "status": "clarified",
+    "summary": "用户已确认全部3项待定事项：冒泡排序默认参数（10, 1-100）、Excel三列格式、端口代理转发配置。设计文档已更新，可进入实施计划阶段。"
+  },
   "design_doc": ".agents/system.changes/dima.md"
 }
