@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,9 @@ public class ExportService {
 
         String title = getTabTitle(tab);
         document.add(new Paragraph(title).setFontSize(20).setBold());
-        document.add(new Paragraph("Export Time: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        String exportTime = LocalDateTime.now(ZoneId.of("Asia/Shanghai"))
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        document.add(new Paragraph("Export Time: " + exportTime));
         document.add(new Paragraph(" "));
 
         // Render result data as a table
