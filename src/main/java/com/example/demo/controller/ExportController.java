@@ -1,16 +1,29 @@
 package com.example.demo.controller;
 
+import com.example.demo.common.ApiResult;
 import com.example.demo.dto.ExportRequest;
 import com.example.demo.service.ExportService;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api")
 public class ExportController {
+
+    private static final Logger log = LoggerFactory.getLogger(ExportController.class);
 
     private final ExportService exportService;
 
@@ -22,7 +35,7 @@ public class ExportController {
     public ResponseEntity<?> export(@RequestBody ExportRequest request) {
         try {
             byte[] bytes = exportService.export(request.getType(), request.getData());
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+            String timestamp = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             String filename = "export-" + request.getType() + "-" + timestamp + ".xlsx";
 
             HttpHeaders headers = new HttpHeaders();
@@ -34,11 +47,13 @@ public class ExportController {
 
             return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
+            log.error("导出参数非法: type={}", request.getType(), e);
             return ResponseEntity.badRequest()
-                    .body(java.util.Map.of("code", 400, "message", e.getMessage()));
+                    .body(ApiResult.error(400, e.getMessage()));
         } catch (Exception e) {
+            log.error("Excel 生成失败: type={}", request.getType(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(java.util.Map.of("code", 500, "message", "Excel 生成失败: " + e.getMessage()));
+                    .body(ApiResult.error(500, "Excel 生成失败: " + e.getMessage()));
         }
     }
 }

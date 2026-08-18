@@ -1,6 +1,9 @@
 server:
   port: 8080
 
+metrics:
+  enabled: true
+
 spring:
   application:
     name: demo

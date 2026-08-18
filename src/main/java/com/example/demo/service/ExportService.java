@@ -1,7 +1,11 @@
 package com.example.demo.service;
 
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -10,6 +14,8 @@ import java.util.Map;
 
 @Service
 public class ExportService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExportService.class);
 
     public byte[] export(String type, Object data) {
         if (!"helloworld".equals(type) && !"hash".equals(type) && !"bubblesort".equals(type)) {
@@ -30,9 +36,8 @@ public class ExportService {
             }
             workbook.write(out);
             return out.toByteArray();
-        } catch (IllegalArgumentException e) {
-            throw e;
         } catch (Exception e) {
+            log.error("Excel 生成失败: type={}", type, e);
             throw new RuntimeException("Excel 生成失败", e);
         }
     }

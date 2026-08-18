@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 public class HashService {
+
+    private static final Logger log = LoggerFactory.getLogger(HashService.class);
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
@@ -21,6 +25,7 @@ public class HashService {
             byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
             return bytesToHex(digest);
         } catch (NoSuchAlgorithmException e) {
+            log.error("哈希算法不可用: algorithm={}", algorithm, e);
             throw new RuntimeException("算法不可用", e);
         }
     }
