@@ -22,7 +22,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         if (metricsEnabled) {
             registry.addInterceptor(metricsInterceptor)
-                    .addPathPatterns("/api/**");
+                    .addPathPatterns("/api/**")
+                    .excludePathPatterns("/api/metrics");
         }
     }
 }

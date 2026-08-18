@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
+/**
+ * 埋点报表查询接口控制器。
+ */
 @RestController
 @RequestMapping("/api")
 public class MetricsController {
@@ -26,6 +29,9 @@ public class MetricsController {
         this.metricsService = metricsService;
     }
 
+    /**
+     * 按维度查询埋点调用统计报表。
+     */
     @GetMapping("/metrics")
     public ResponseEntity<ApiResult<MetricsResponse>> metrics(
             @RequestParam String dimension,

@@ -19,11 +19,19 @@ public class WeatherService {
             + "雨天策略：8月20日和22日中雨时段建议安排博物馆、书店、美食等室内活动，"
             + "利用雨停间隙快速打卡户外景点。";
 
+    /**
+     * 获取指定城市的天气数据（当前为演示数据，未来可替换为真实 API 调用）。
+     *
+     * @param city 城市名称，仅支持 "hangzhou" / "杭州"
+     * @return 7 天天气预报
+     * @throws IllegalArgumentException 如果城市不支持
+     */
     public WeatherResponse getWeather(String city) {
         if (!"hangzhou".equalsIgnoreCase(city) && !"杭州".equals(city)) {
             throw new IllegalArgumentException("暂仅支持杭州 (hangzhou) 天气查询");
         }
 
+        // 演示数据：2026-08-18 至 2026-08-24 杭州天气，实际生产应接入真实天气 API
         List<WeatherDay> days = new ArrayList<>();
         days.add(new WeatherDay("2026-08-18", "周二", "阴", 34, 26,
                 "适宜", "西湖骑行、龙井村茶文化体验"));

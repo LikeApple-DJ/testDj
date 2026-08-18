@@ -14,7 +14,18 @@ public class HashService {
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
+    /**
+     * 计算输入字符串的哈希值。
+     *
+     * @param input     待哈希的原始字符串，不能为 null
+     * @param algorithm 算法名称，仅支持 MD5 / SHA256（大小写不敏感）
+     * @return 十六进制哈希字符串
+     * @throws IllegalArgumentException 如果 input 为 null 或 algorithm 不支持
+     */
     public String compute(String input, String algorithm) {
+        if (input == null) {
+            throw new IllegalArgumentException("input 不能为空");
+        }
         if (!"MD5".equalsIgnoreCase(algorithm) && !"SHA256".equalsIgnoreCase(algorithm)) {
             throw new IllegalArgumentException(
                     "不支持的算法: " + algorithm + "，仅支持 MD5 / SHA256");
@@ -25,6 +36,7 @@ public class HashService {
             byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
             return bytesToHex(digest);
         } catch (NoSuchAlgorithmException e) {
+            // MD5 和 SHA-256 均为 Java 标准算法，该异常理论上不可达，保留作为防御性编程
             log.error("哈希算法不可用: algorithm={}", algorithm, e);
             throw new RuntimeException("算法不可用", e);
         }

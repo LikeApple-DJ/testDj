@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 天气查询接口控制器。
+ */
 @RestController
 @RequestMapping("/api")
 public class WeatherController {
@@ -23,6 +26,9 @@ public class WeatherController {
         this.weatherService = weatherService;
     }
 
+    /**
+     * 查询指定城市未来 7 天天气。
+     */
     @GetMapping("/weather")
     public ResponseEntity<ApiResult<WeatherResponse>> getWeather(
             @RequestParam(defaultValue = "hangzhou") String city) {

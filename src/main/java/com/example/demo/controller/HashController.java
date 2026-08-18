@@ -4,6 +4,7 @@ import com.example.demo.common.ApiResult;
 import com.example.demo.dto.HashRequest;
 import com.example.demo.dto.HashResponse;
 import com.example.demo.service.HashService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 哈希算法接口控制器。
+ */
 @RestController
 @RequestMapping("/api")
 public class HashController {
@@ -24,8 +28,11 @@ public class HashController {
         this.hashService = hashService;
     }
 
+    /**
+     * 计算输入字符串的哈希值。
+     */
     @PostMapping("/hash")
-    public ResponseEntity<ApiResult<HashResponse>> hash(@RequestBody HashRequest request) {
+    public ResponseEntity<ApiResult<HashResponse>> hash(@Valid @RequestBody HashRequest request) {
         try {
             if (request.getAlgorithm() == null || request.getAlgorithm().isBlank()) {
                 return ResponseEntity.badRequest()

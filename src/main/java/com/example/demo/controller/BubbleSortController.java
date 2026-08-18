@@ -4,6 +4,7 @@ import com.example.demo.common.ApiResult;
 import com.example.demo.dto.BubbleSortRequest;
 import com.example.demo.dto.BubbleSortResponse;
 import com.example.demo.service.BubbleSortService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 冒泡排序接口控制器。
+ */
 @RestController
 @RequestMapping("/api")
 public class BubbleSortController {
@@ -26,12 +30,17 @@ public class BubbleSortController {
         this.bubbleSortService = bubbleSortService;
     }
 
+    /**
+     * 对输入数组执行冒泡排序。
+     */
     @PostMapping("/bubblesort")
     public ResponseEntity<ApiResult<BubbleSortResponse>> bubbleSort(
-            @RequestBody BubbleSortRequest request) {
+            @Valid @RequestBody BubbleSortRequest request) {
         try {
             List<Integer> array = request.getArray();
-            if (array == null) {
+            if (array == null || array.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResult.error(400, "array 不能为空"));
                 return ResponseEntity.badRequest()
                         .body(ApiResult.error(400, "array 不能为空"));
             }

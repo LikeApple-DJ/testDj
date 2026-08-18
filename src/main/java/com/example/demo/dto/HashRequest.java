@@ -1,7 +1,16 @@
 package com.example.demo.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * 哈希计算请求 DTO。
+ */
 public class HashRequest {
+
+    @NotBlank(message = "input 不能为空")
     private String input;
+
+    @NotBlank(message = "algorithm 不能为空，请指定 MD5 或 SHA256")
     private String algorithm;
 
     public String getInput() { return input; }

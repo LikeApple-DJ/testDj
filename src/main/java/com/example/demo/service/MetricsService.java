@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 埋点报表查询服务。
+ */
 @Service
 public class MetricsService {
 
@@ -23,6 +26,15 @@ public class MetricsService {
         this.repository = repository;
     }
 
+    /**
+     * 按指定维度聚合查询埋点调用统计。
+     *
+     * @param dimension 聚合维度：personType / level / department
+     * @param startDate 查询起始日期（含），null 表示不限
+     * @param endDate   查询截止日期（含），null 表示不限
+     * @return 聚合后的报表数据
+     * @throws IllegalArgumentException 如果 dimension 不支持
+     */
     public MetricsResponse queryByDimension(String dimension, LocalDate startDate, LocalDate endDate) {
         LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;

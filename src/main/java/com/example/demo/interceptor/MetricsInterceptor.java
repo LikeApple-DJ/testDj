@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -14,6 +15,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * 埋点拦截器：自动记录每次 API 调用的请求信息（调用人、人员类型、层级、部门、API路径等）。
+ * 埋点写入采用异步方式，避免阻塞主请求线程。
+ */
 @Component
 public class MetricsInterceptor implements HandlerInterceptor {
 
@@ -22,14 +27,13 @@ public class MetricsInterceptor implements HandlerInterceptor {
     private final MetricsRecordRepository repository;
     private final ThreadPoolTaskExecutor metricsExecutor;
 
-    public MetricsInterceptor(MetricsRecordRepository repository) {
+    /**
+     * 构造函数注入 Repository 和由 Spring 管理的线程池。
+     */
+    public MetricsInterceptor(MetricsRecordRepository repository,
+                              @Qualifier("metricsTaskExecutor") ThreadPoolTaskExecutor metricsExecutor) {
         this.repository = repository;
-        this.metricsExecutor = new ThreadPoolTaskExecutor();
-        this.metricsExecutor.setCorePoolSize(2);
-        this.metricsExecutor.setMaxPoolSize(4);
-        this.metricsExecutor.setQueueCapacity(100);
-        this.metricsExecutor.setThreadNamePrefix("metrics-");
-        this.metricsExecutor.initialize();
+        this.metricsExecutor = metricsExecutor;
     }
 
     @Override
