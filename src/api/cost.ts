@@ -9,6 +9,10 @@ export function createCostBudget(employeeId: number, data: { costType: string; a
   return http.post<CostBudget>(`/employees/${employeeId}/costs`, data)
 }
 
+export function updateCostBudget(employeeId: number, costId: number, data: { costType: string; amount: number; year: number; description: string }) {
+  return http.put<CostBudget>(`/employees/${employeeId}/costs/${costId}`, data)
+}
+
 export function deleteCostBudget(employeeId: number, costId: number) {
   return http.delete(`/employees/${employeeId}/costs/${costId}`)
 }

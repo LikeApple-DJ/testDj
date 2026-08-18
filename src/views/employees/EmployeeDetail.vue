@@ -33,7 +33,7 @@
       <template #header>
         <div class="card-header">
           <span>成本预算</span>
-          <el-button size="small" type="primary" @click="showAddCostDialog = true">添加成本</el-button>
+          <el-button size="small" type="primary" @click="openAddCostDialog">添加成本</el-button>
         </div>
       </template>
 
@@ -48,16 +48,17 @@
         </el-table-column>
         <el-table-column prop="year" label="年度" width="100" />
         <el-table-column prop="description" label="说明" />
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="200">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="openEditCostDialog(row)">编辑</el-button>
             <el-button link type="danger" size="small" @click="handleDeleteCost(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <!-- Add Cost Dialog -->
-    <el-dialog v-model="showAddCostDialog" title="添加成本预算" width="500px">
+    <!-- Add/Edit Cost Dialog -->
+    <el-dialog v-model="showCostDialog" :title="isEditingCost ? '编辑成本预算' : '添加成本预算'" width="500px">
       <el-form :model="costForm" label-width="100px">
         <el-form-item label="成本类型" required>
           <el-select v-model="costForm.costType" style="width: 100%">
@@ -78,8 +79,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showAddCostDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleAddCost" :loading="costSubmitting">确认</el-button>
+        <el-button @click="showCostDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveCost" :loading="costSubmitting">{{ isEditingCost ? '保存' : '确认' }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -90,14 +91,16 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getEmployee } from '@/api/employee'
-import { listCostBudgets, createCostBudget, deleteCostBudget } from '@/api/cost'
+import { listCostBudgets, createCostBudget, updateCostBudget, deleteCostBudget } from '@/api/cost'
 import type { Employee, CostBudget } from '@/types/employee'
 
 const route = useRoute()
 const router = useRouter()
 const employee = ref<Employee | null>(null)
 const costBudgets = ref<CostBudget[]>([])
-const showAddCostDialog = ref(false)
+const showCostDialog = ref(false)
+const isEditingCost = ref(false)
+const editingCostId = ref<number | null>(null)
 const costSubmitting = ref(false)
 const costForm = ref({ costType: 'SALARY', amount: 0, year: new Date().getFullYear(), description: '' })
 
@@ -122,12 +125,37 @@ const loadCostBudgets = async () => {
   }
 }
 
-const handleAddCost = async () => {
+const openAddCostDialog = () => {
+  isEditingCost.value = false
+  editingCostId.value = null
+  costForm.value = { costType: 'SALARY', amount: 0, year: new Date().getFullYear(), description: '' }
+  showCostDialog.value = true
+}
+
+const openEditCostDialog = (row: CostBudget) => {
+  isEditingCost.value = true
+  editingCostId.value = row.id
+  costForm.value = {
+    costType: row.costType,
+    amount: row.amount,
+    year: row.year,
+    description: row.description || ''
+  }
+  showCostDialog.value = true
+}
+
+const handleSaveCost = async () => {
   costSubmitting.value = true
   try {
-    await createCostBudget(Number(route.params.id), costForm.value)
-    ElMessage.success('添加成功')
-    showAddCostDialog.value = false
+    const employeeId = Number(route.params.id)
+    if (isEditingCost.value && editingCostId.value !== null) {
+      await updateCostBudget(employeeId, editingCostId.value, costForm.value)
+      ElMessage.success('更新成功')
+    } else {
+      await createCostBudget(employeeId, costForm.value)
+      ElMessage.success('添加成功')
+    }
+    showCostDialog.value = false
     costForm.value = { costType: 'SALARY', amount: 0, year: new Date().getFullYear(), description: '' }
     loadCostBudgets()
   } finally {
