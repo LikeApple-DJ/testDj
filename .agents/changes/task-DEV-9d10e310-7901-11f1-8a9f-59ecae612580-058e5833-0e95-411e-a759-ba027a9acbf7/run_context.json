@@ -7,8 +7,8 @@
   "summary": "需求澄清阶段已完成 - 通过 brainstorming 技能逐步澄清了人员看板全部需求要点",
   "clarified_items": [
     {
-      "topic": "技术栈",
-      "decision": "Java + Spring Boot（后端）+ 关系型数据库 + Vue/React（前端）"
+      "topic": "技术栈与仓库分工",
+      "decision": "testDj-main=前端(Vue 3+Element Plus)，testDJnew-main=后端(Spring Boot 3.x+MySQL 8) — 采用 plan.md 推荐方案"
     },
     {
       "topic": "员工基本信息字段",
@@ -16,7 +16,7 @@
     },
     {
       "topic": "成本预算",
-      "decision": "员工个人维度，包含薪资、培训、差旅等个人成本项"
+      "decision": "两者都需要：既有预算额度设定（年度/季度），又记录实际支出（薪资、培训、差旅等个人成本项）"
     },
     {
       "topic": "白名单机制",
@@ -25,6 +25,10 @@
     {
       "topic": "批量导入格式",
       "decision": "支持 CSV 和 Excel 两种文件格式上传导入"
+    },
+    {
+      "topic": "认证与入口",
+      "decision": "需要登录认证系统；「入口」指现有系统的菜单入口"
     }
   ],
   "repos": [
@@ -32,13 +36,13 @@
       "repo_id": "testDj-main",
       "path": "/root/.agentix/agentic-dev/runs/DEV-9d10e310-7901-11f1-8a9f-59ecae612580-058e5833-0e95-411e-a759-ba027a9acbf7/worktree/testDj-main",
       "status": "empty_project",
-      "notes": "待定角色分配（主应用/前端/后端）"
+      "notes": "角色：前端（Vue 3 + Element Plus）"
     },
     {
       "repo_id": "testDJnew-main",
       "path": "/root/.agentix/agentic-dev/runs/DEV-9d10e310-7901-11f1-8a9f-59ecae612580-058e5833-0e95-411e-a759-ba027a9acbf7/worktree/testDJnew-main",
       "status": "empty_project",
-      "notes": "待定角色分配（新模块/后端服务）"
+      "notes": "角色：后端（Spring Boot 3.x + MySQL 8）"
     }
   ]
 }
