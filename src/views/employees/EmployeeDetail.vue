@@ -89,7 +89,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getEmployee } from '@/api/employee'
 import { listCostBudgets, createCostBudget, updateCostBudget, deleteCostBudget } from '@/api/cost'
 import type { Employee, CostBudget } from '@/types/employee'
@@ -165,11 +165,18 @@ const handleSaveCost = async () => {
 
 const handleDeleteCost = async (costId: number) => {
   try {
+    await ElMessageBox.confirm('确定删除该成本预算记录吗？删除后不可恢复。', '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await deleteCostBudget(Number(route.params.id), costId)
     ElMessage.success('删除成功')
     loadCostBudgets()
-  } catch {
-    // ignore
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败: ' + (e?.message || '未知错误'))
+    }
   }
 }
 
