@@ -3,8 +3,14 @@ package com.example.cost.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.cost.dto.LaborCostQueryDTO;
 import com.example.cost.dto.LaborCostVO;
+import com.example.cost.entity.BusinessLine;
+import com.example.cost.entity.Department;
 import com.example.cost.entity.LaborCost;
+import com.example.cost.entity.Project;
+import com.example.cost.mapper.BusinessLineMapper;
+import com.example.cost.mapper.DepartmentMapper;
 import com.example.cost.mapper.LaborCostMapper;
+import com.example.cost.mapper.ProjectMapper;
 import com.example.cost.service.LaborCostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,7 +18,10 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,11 +29,18 @@ import java.util.stream.Collectors;
 public class LaborCostServiceImpl implements LaborCostService {
 
     private final LaborCostMapper laborCostMapper;
+    private final DepartmentMapper departmentMapper;
+    private final ProjectMapper projectMapper;
+    private final BusinessLineMapper businessLineMapper;
 
     @Override
     public LaborCostVO queryLaborStats(LaborCostQueryDTO query) {
         LambdaQueryWrapper<LaborCost> wrapper = new LambdaQueryWrapper<>();
         applyPeriodFilter(wrapper, query.getPeriodType(), query.getPeriodValue());
+
+        // 维度筛选：解析名称 → ID，过滤查询
+        applyDimensionFilter(wrapper, query);
+
         if (StringUtils.hasText(query.getRole())) {
             wrapper.eq(LaborCost::getRole, query.getRole());
         }
@@ -69,12 +85,49 @@ public class LaborCostServiceImpl implements LaborCostService {
         return vo;
     }
 
+    /**
+     * 应用维度筛选条件：将名称解析为 ID 后过滤。
+     */
+    private void applyDimensionFilter(LambdaQueryWrapper<LaborCost> wrapper, LaborCostQueryDTO query) {
+        if (StringUtils.hasText(query.getDepartment())) {
+            Department dept = departmentMapper.selectOne(
+                    new LambdaQueryWrapper<Department>().eq(Department::getName, query.getDepartment()));
+            if (dept != null) {
+                wrapper.eq(LaborCost::getDepartmentId, dept.getId());
+            } else {
+                wrapper.eq(LaborCost::getDepartmentId, -1L);
+            }
+        }
+        if (StringUtils.hasText(query.getProject())) {
+            Project proj = projectMapper.selectOne(
+                    new LambdaQueryWrapper<Project>().eq(Project::getName, query.getProject()));
+            if (proj != null) {
+                wrapper.eq(LaborCost::getProjectId, proj.getId());
+            } else {
+                wrapper.eq(LaborCost::getProjectId, -1L);
+            }
+        }
+        if (StringUtils.hasText(query.getBusinessLine())) {
+            BusinessLine bl = businessLineMapper.selectOne(
+                    new LambdaQueryWrapper<BusinessLine>().eq(BusinessLine::getName, query.getBusinessLine()));
+            if (bl != null) {
+                wrapper.eq(LaborCost::getBusinessLineId, bl.getId());
+            } else {
+                wrapper.eq(LaborCost::getBusinessLineId, -1L);
+            }
+        }
+        if (query.getPersonnelId() != null) {
+            wrapper.eq(LaborCost::getPersonnelId, query.getPersonnelId());
+        }
+    }
+
     private void applyPeriodFilter(LambdaQueryWrapper<LaborCost> wrapper, String periodType, String periodValue) {
         if (!StringUtils.hasText(periodType) || !StringUtils.hasText(periodValue)) return;
         switch (periodType) {
             case "month" -> wrapper.eq(LaborCost::getCostMonth, periodValue);
             case "quarter" -> wrapper.eq(LaborCost::getCostQuarter, periodValue);
             case "year" -> wrapper.eq(LaborCost::getCostYear, periodValue);
+            default -> throw new IllegalArgumentException("无效的 periodType: " + periodType);
         }
     }
 }
