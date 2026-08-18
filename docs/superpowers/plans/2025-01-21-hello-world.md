@@ -27,22 +27,22 @@
 - Consumes: 无
 - Produces: 文件 `07hubtasty`，内容为 "hello world\n"
 
-- [ ] **Step 1: 确认当前文件状态**
+- [x] **Step 1: 确认当前文件状态**
 
 Run: `cat 07hubtasty`
 Expected: 文件已存在，内容为 "hello world"
 
-- [ ] **Step 2: 确保内容符合规范**
+- [x] **Step 2: 确保内容符合规范**
 
 Run: `echo 'hello world' > 07hubtasty && cat 07hubtasty`
 Expected: 输出 "hello world"
 
-- [ ] **Step 3: 验证输出格式**
+- [x] **Step 3: 验证输出格式**
 
 Run: `wc -c 07hubtasty`
 Expected: 12 bytes (11 字符 + 换行符)
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add 07hubtasty
