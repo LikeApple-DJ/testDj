@@ -1,236 +1,280 @@
 # 代码评审报告 (Code Review Report)
 
-**项目**: 人员看板 (Personnel Dashboard)
-**仓库**: testDj-main (前端) + testDJnew-main (后端)
-**评审日期**: 2025-06-22
-**评审阶段**: loop-2 (Code Review)
-**评审范围**: 全量代码审查
+> **项目**: 人员看板管理系统  
+> **阶段**: loop-2 - 代码评审  
+> **技能**: code-review-skill  
+> **评审日期**: 2025-06-22  
+> **评审人**: DTCoder  
 
 ---
 
-## 总览
+## 评审概览
 
-本次评审覆盖两个仓库的全部代码改动。前端仓库 `testDj-main` 基于 Vue 3 + Element Plus + TypeScript 实现人员看板 UI；后端仓库 `testDJnew-main` 基于 Spring Boot 3.2 + Spring Data JPA + MySQL 8 实现 REST API。
+| 维度 | 状态 |
+|------|------|
+| 架构设计 | ✅ 符合需求 |
+| 功能完整性 | ⚠️ 部分待完善 |
+| 代码质量 | ⚠️ 存在改进空间 |
+| 安全审查 | ⚠️ 需关注 |
+| 跨仓一致性 | ✅ 基本一致 |
 
-整体代码质量良好，结构清晰，功能完整覆盖了员工 CRUD、批量导入（CSV/Excel）、成本预算管理和白名单管理四大模块。以下按严重程度列出发现的问题。
+| 严重级别 | 数量 |
+|----------|------|
+| 🔴 阻塞性 (blocking) | 1 |
+| 🟡 重要 (important) | 5 |
+| 🟢 优化建议 (nit) | 5 |
+
+---
+
+## 仓库范围
+
+### testDj-main（前端 - Vue 3 + Element Plus）
+- `src/api/http.ts` - Axios 实例
+- `src/api/employee.ts` - 员工 API
+- `src/api/cost.ts` - 成本预算 API
+- `src/api/whitelist.ts` - 白名单 API
+- `src/types/employee.ts` - 类型定义
+- `src/views/employees/EmployeeList.vue` - 员工列表
+- `src/views/employees/EmployeeDetail.vue` - 员工详情 + 成本预算
+- `src/views/employees/EmployeeForm.vue` - 新增/编辑员工
+- `src/views/import/ImportView.vue` - 批量导入
+- `src/views/whitelist/WhitelistView.vue` - 白名单管理
+- `src/App.vue` - 主布局
+- `src/router/index.ts` - 路由配置
+- `src/main.ts` - 入口文件
+
+### testDJnew-main（后端 - Spring Boot 3.x + MySQL）
+- `controller/EmployeeController.java` - 员工 REST API
+- `controller/CostBudgetController.java` - 成本预算 REST API
+- `controller/WhitelistController.java` - 白名单 REST API
+- `service/EmployeeServiceImpl.java` - 员工业务逻辑
+- `service/CostBudgetServiceImpl.java` - 成本预算业务逻辑
+- `service/WhitelistServiceImpl.java` - 白名单业务逻辑
+- `service/FileImportServiceImpl.java` - 文件导入处理
+- `entity/Employee.java` - 员工实体
+- `entity/CostBudget.java` - 成本预算实体
+- `entity/ImportWhitelist.java` - 导入白名单实体
+- `entity/PermissionWhitelist.java` - 权限白名单实体
+- `dto/` - 各 DTO 定义
+- `repository/` - 数据访问层
+- `exception/GlobalExceptionHandler.java` - 全局异常处理
+- `config/WebConfig.java` - 跨域配置
+- `resources/db/migration/V1__init_schema.sql` - 数据库初始化脚本
 
 ---
 
 ## 🔴 阻塞性问题 (1 个)
 
-### 🔴 1. 白名单未在导入流程中强制执行
+### B1. [testDJnew-main] .xls 文件格式导入不可用
 
-**文件**: `[testDJnew-main] FileImportServiceImpl.java`
-**严重性**: 🔴 **blocking**
+**文件**: `src/main/java/com/personnel/service/FileImportServiceImpl.java` (第41-42行, 第96行)
 
-**问题描述**:  
-`WhitelistService` 提供了 `isDepartmentAllowedForImport(department)` 方法用于检查部门是否在白名单中，但 `FileImportServiceImpl` 在导入员工时**完全没有调用白名单检查**。`FileImportServiceImpl` 中甚至没有注入 `WhitelistService`。
+**问题描述**: 代码检查文件扩展名时同时支持 `.xlsx` 和 `.xls`，但 `importExcel()` 方法仅使用 `XSSFWorkbook`。`XSSFWorkbook` 只支持 OOXML 格式（.xlsx），无法读取 OLE2 格式的 `.xls` 文件。上传 `.xls` 文件会抛出 `NotOfficeXmlFileException` 异常，导致导入 500 错误。
 
-**影响**: 白名单形同虚设——即使配置了导入白名单，任何部门的员工数据都可以被导入。
-
-**建议修复**: 在 `FileImportServiceImpl` 中注入 `WhitelistService`，并在 `buildEmployeeFromFields()` 中检查 `department` 是否在白名单中。
-
+**代码片段**:
 ```java
-// 在 FileImportServiceImpl 中添加
-private final WhitelistService whitelistService;
+// 第41行 - 扩展名检查同时支持 .xls 和 .xlsx
+} else if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
+    return importExcel(file);  // 两者都走同一方法
 
-// 在 buildEmployeeFromFields() 中添加
-if (!whitelistService.isDepartmentAllowedForImport(department.trim())) {
-    errors.add(ImportError.builder()
-        .row(rowNum).column("部门")
-        .message("该部门不在导入白名单中: " + department)
-        .build());
-    return null;
+// 第96行 - 仅使用 XSSFWorkbook（不支持 .xls）
+try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+```
+
+**建议修复**: 根据文件扩展名选择 Workbook 实现类：
+```java
+Workbook workbook;
+if (filename.toLowerCase().endsWith(".xlsx")) {
+    workbook = new XSSFWorkbook(file.getInputStream());
+} else {
+    workbook = new HSSFWorkbook(file.getInputStream());
 }
 ```
+
+需在 `pom.xml` 中添加 `poi-ooxml` 依赖（已包含 `poi` 用于 HSSFWorkbook）。
 
 ---
 
 ## 🟡 重要问题 (5 个)
 
-### 🟡 2. 更新员工时未校验工号唯一性
+### I1. [testDJnew-main] HTTP 状态码使用不当
 
-**文件**: `[testDJnew-main] EmployeeServiceImpl.java` 第 93-113 行
-**严重性**: 🟡 **important**
+**文件**: `src/main/java/com/personnel/exception/GlobalExceptionHandler.java` (第17-22行)
 
-**问题描述**:  
-`updateEmployee()` 方法允许修改 `employeeNo` 字段，但**没有校验新工号是否已被其他员工使用**。如果管理员将员工 A 的工号改为员工 B 已有的工号，数据库 UNIQUE 约束会抛出异常，返回 500 错误。
+**问题描述**: 所有 `RuntimeException` 均映射为 HTTP 400 BAD_REQUEST。这导致业务语义混淆：
+- "员工不存在: xxx" → 应返回 404 Not Found
+- "工号已存在: xxx" → 应返回 409 Conflict
+- "文件读取失败" → 可返回 500 Internal Server Error
 
-**建议修复**: 在更新前添加工号唯一性检查，排除自身。
+**建议**: 定义自定义异常（如 `ResourceNotFoundException`、`DuplicateResourceException`）并分别处理，或在异常处理器中按消息模式匹配返回不同状态码。
 
+### I2. [testDJnew-main] 成本预算操作缺少白名单权限校验
+
+**文件**: `src/main/java/com/personnel/service/CostBudgetServiceImpl.java` (第21-76行)
+
+**问题描述**: 需求明确了「操作权限白名单」用于控制谁能查看/编辑成本预算。`WhitelistServiceImpl` 中已实现 `hasPermission()` 方法，但 `CostBudgetServiceImpl` 的所有方法均未调用该权限校验。任何用户均可查看/编辑任意员工的成本数据。
+
+**建议**: 在 `CostBudgetServiceImpl` 的四个方法中添加权限校验：
 ```java
-if (!employee.getEmployeeNo().equals(request.getEmployeeNo()) 
-    && employeeRepository.existsByEmployeeNo(request.getEmployeeNo())) {
-    throw new RuntimeException("工号已存在: " + request.getEmployeeNo());
+if (!whitelistService.hasPermission(currentUserId, "VIEW_COST")) {
+    throw new RuntimeException("无权限查看成本预算");
+}
+```
+（需先注入认证用户信息）
+
+### I3. [testDJnew-main] 成本预算删除无确认对话框、无错误提示
+
+**文件**: `src/views/employees/EmployeeDetail.vue` (第166-174行)
+
+**问题描述**: `handleDeleteCost` 方法直接调用删除 API，无二次确认对话框。成本数据涉及财务信息，误删后无法恢复。同时 catch 块为空，删除失败时用户无任何反馈。
+
+**代码片段**:
+```typescript
+const handleDeleteCost = async (costId: number) => {
+  try {
+    await deleteCostBudget(Number(route.params.id), costId)
+    ElMessage.success('删除成功')
+    loadCostBudgets()
+  } catch {
+    // ignore  ← 静默吞异常
+  }
 }
 ```
 
-### 🟡 3. 缺少认证/授权机制
+**建议**: 参考 EmployeeList.vue 的删除方式，添加 `ElMessageBox.confirm` 确认对话框，并在 catch 中给出错误提示。
 
-**文件**: 全局
-**严重性**: 🟡 **important**
+### I4. [testDj-main] EmployeeForm.vue 日期格式化存在时区隐患
 
-**问题描述**:  
-需求文档要求"需要登录认证系统"，但当前实现中：
-- 后端无 Spring Security 依赖
-- 无 JWT/Session 认证机制
-- 所有接口无需认证即可访问
-- 白名单中 `createdBy` 硬编码为 `"system"`
+**文件**: `src/views/employees/EmployeeForm.vue` (第162-166行)
 
-当前实现仅依靠前端 CORS 和后端简单校验，生产环境存在严重安全风险。
+**问题描述**: `formatDate` 使用 `toISOString().split('T')[0]` 将 Date 转为字符串。`toISOString()` 返回 UTC 时区的 ISO 字符串，在非 UTC 时区（如 UTC+8）下，选择的日期可能在转换后偏移一天。例如选择 `2025-06-22` 在 UTC+8 时区下可能变为 `2025-06-21`。
 
-**建议修复**: 引入 Spring Security + JWT 认证，或与现有系统的认证机制集成。
+**代码片段**:
+```typescript
+const formatDate = (date: Date | string): string => {
+  if (!date) return ''
+  if (typeof date === 'string') return date
+  return date.toISOString().split('T')[0]  // 使用 UTC 时间
+}
+```
 
-### 🟡 4. 前端缺少成本预算编辑功能
+**建议**: 使用 `date.getFullYear()`, `date.getMonth() + 1`, `date.getDate()` 构造本地日期字符串：
+```typescript
+const y = date.getFullYear()
+const m = String(date.getMonth() + 1).padStart(2, '0')
+const d = String(date.getDate()).padStart(2, '0')
+return `${y}-${m}-${d}`
+```
 
-**文件**: `[testDj-main] EmployeeDetail.vue`
-**严重性**: 🟡 **important**
+### I5. [testDj-main] 白名单新增对话框缺少前端表单校验
 
-**问题描述**:  
-后端已实现 `PUT /api/v1/employees/{id}/costs/{costId}` 更新接口，但前端 `EmployeeDetail.vue` 中仅实现了成本预算的**新增和删除**，缺少**编辑**功能。用户无法修改已添加的成本预算记录。
+**文件**: `src/views/whitelist/WhitelistView.vue` (第66-102行)
 
-**建议修复**: 在成本预算表格中添加编辑按钮，弹出编辑对话框调用 `updateCostBudget` API。
+**问题描述**: 新增导入白名单和操作权限白名单的对话框直接提交表单，未对输入进行非空校验。用户可提交空部门名称或空用户ID，后端虽然有 `@NotBlank` 校验，但前端应提前拦截以提升用户体验。
 
-### 🟡 5. Excel 导入使用硬编码字段数量
-
-**文件**: `[testDJnew-main] FileImportServiceImpl.java` 第 106 行
-**严重性**: 🟡 **important**
-
-**问题描述**:  
-Excel 导入时硬编码了 `String[] fields = new String[15]` 和循环 `for (int j = 0; j < 15; j++)`，假设 Excel 表格恰好有 15 列。如果导入的 Excel 列数不同，会导致数组越界或数据错位。
-
-**对比**: CSV 导入使用动态解析，不会出现此问题——两种导入方式行为不一致。
-
-**建议修复**: 使用 `row.getLastCellNum()` 动态确定列数。
-
-### 🟡 6. `opencsv` 依赖未使用，自定义 CSV 解析器存在缺陷
-
-**文件**: `[testDJnew-main] pom.xml` + `FileImportServiceImpl.java`
-**严重性**: 🟡 **important**
-
-**问题描述**:  
-`pom.xml` 中声明了 `opencsv:5.9` 依赖，但实际代码中未使用——自行实现了 `parseCsvLine()` 方法。该自定义解析器存在以下问题：
-1. 不处理转义引号（`""` 表示字面引号）
-2. 不处理换行符嵌入字段
-3. 不处理 BOM 头
-
-**建议修复**: 直接使用 OpenCSV 的 `CSVReader` 替代自解析。
+**建议**: 为对话框内的 `el-form` 添加 `:rules` 校验规则，提交前调用 `formRef.value.validate()`。
 
 ---
 
-## 🟢 建议/优化 (5 个)
+## 🟢 优化建议 (5 个)
 
-### 🟢 7. 接口响应体结构不一致
+### N1. [testDJnew-main] `createdBy` 硬编码为 "system"
 
-**文件**: `[testDj-main] src/types/employee.ts` + `[testDJnew-main] PageResponse.java`
-**严重性**: 🟢 **nit**
+**文件**: `src/main/java/com/personnel/service/WhitelistServiceImpl.java` (第38行, 第70行)
 
-**问题描述**:  
-前端 `PageResponse` 接口包含 `currentPage` 和 `pageSize` 字段，但后端 `PageResponse` 类也包含这些字段。前端代码并未使用这些字段（仅使用 `content` 和 `totalElements`），但这意味着前端声明了未使用的契约字段，可能造成困惑。
+**问题描述**: 白名单记录的 `createdBy` 字段值硬编码为 `"system"`，而非当前登录用户。由于系统尚未实现认证模块，无法获取当前用户信息，但应预留接口或标记待完善。
 
-### 🟢 8. 成本预算类型缺少枚举校验
+### N2. [testDJnew-main] 后端未校验 costType 枚举值
 
-**文件**: `[testDJnew-main] CostBudgetCreateRequest.java`
-**严重性**: 🟢 **nit**
+**文件**: `src/main/java/com/personnel/dto/CostBudgetDTOs.java` (第12-21行)
 
-**问题描述**:  
-`costType` 字段仅使用 `@NotBlank` 校验，未限制为预定义值（SALARY/TRAINING/TRAVEL/OTHER）。恶意请求可以传入任意字符串。建议使用枚举或 `@Pattern` 注解约束。
+**问题描述**: `CostBudgetCreateRequest` 中 `costType` 仅为 `@NotBlank` 字符串，前端仅发送 `SALARY`/`TRAINING`/`TRAVEL`/`OTHER` 四种值。后端未对这四个值进行枚举约束，任意字符串均可通过校验。
 
-### 🟢 9. 导入时缺少 `contractEndDate` 校验
+**建议**: 添加 `@Pattern(regexp = "SALARY|TRAINING|TRAVEL|OTHER")` 校验或使用枚举类型。
 
-**文件**: `[testDJnew-main] FileImportServiceImpl.java` 第 193-198 行
-**严重性**: 🟢 **nit**
+### N3. [testDj-main] 路由中存在未实现的 WeatherView
 
-**问题描述**:  
-`contractEndDate` 解析失败时使用空 catch 块静默忽略异常，这可能导致导入日期格式错误的数据而不报错。建议记录错误信息到 `errors` 列表。
+**文件**: `src/router/index.ts` (第47-51行)
 
-### 🟢 10. 批量导入未校验文件大小
+**问题描述**: 路由配置中包含了 `/weather` 路径，指向 `WeatherView.vue`，但此功能未在需求中定义。该文件未在输入清单中出现，属于未实现的不必要路由。
 
-**文件**: `[testDJnew-main] FileImportServiceImpl.java`
-**严重性**: 🟢 **nit**
+### N4. [testDj-main] 多处空 catch 块静默吞异常
 
-**问题描述**:  
-后端的 `FileImportServiceImpl` 没有在代码层面校验文件大小，仅依赖 Spring 配置的 `max-file-size: 10MB`。建议在 `importFile()` 方法中添加显式校验，提供更友好的错误提示。
+**文件**: 
+- `src/views/employees/EmployeeDetail.vue` (第123行, 第171行)
+- `src/views/whitelist/WhitelistView.vue` (第143行, 第166行, 第189行)
+- `src/views/import/ImportView.vue` (第118行)
 
-### 🟢 11. 缺少字段长度约束
+**问题描述**: 多处 catch 块为空（仅注释 `// ignore` 或 `// handled by interceptor`）。虽然 HTTP 拦截器会记录错误日志，但空 catch 块使得用户无法感知异常，且某些场景下（如列表加载失败）用户看不到错误提示。
 
-**文件**: `[testDJnew-main] EmployeeCreateRequest.java`, `EmployeeUpdateRequest.java`
-**严重性**: 🟢 **nit**
+**建议**: 至少对用户可见的操作添加适当的错误提示消息。
 
-**问题描述**:  
-DTO 中未对 `name`、`department`、`position` 等字符串字段添加 `@Size` 长度约束。虽然数据库有长度限制，但未在应用层进行校验，当超长数据提交时会出现不易理解的数据库错误。
+### N5. [testDJnew-main] 导入 CSV 的 contractEndDate 字段未放入 Builder
 
----
+**文件**: `src/main/java/com/personnel/service/FileImportServiceImpl.java` (第187-202行)
 
-## ✅ 做得好的方面
-
-1. **代码结构清晰**: 前后端分层明确，Controller → Service → Repository 责任清晰，前端组件按功能模块划分。
-2. **API 设计规范**: RESTful 风格统一，使用 `/api/v1/` 前缀，响应状态码使用正确。
-3. **数据库迁移**: 使用 Flyway 管理数据库版本，SQL 脚本包含合理的索引和外键约束。
-4. **测试覆盖**: 后端包含 Controller 集成测试和 Service 层单元测试，覆盖了 CRUD 核心流程。
-5. **前端类型安全**: 使用 TypeScript 定义完整的接口类型，前后端数据模型对齐。
-6. **导入功能健壮性**: 支持 CSV 和 Excel 两种格式，包含错误行报告和友好的错误提示。
-7. **跨域配置**: Vite 代理和 Spring CORS 配置一致，前后端联调无阻塞。
-8. **异常处理**: 后端有全局异常处理器，统一处理校验异常和运行时异常。
+**问题描述**: 在 `buildEmployeeFromFields` 中，`Employee.builder()` 调用未包含 `contractEndDate` 字段，而是在 `.build()` 之后单独调用 `employee.setContractEndDate()` 设置。虽然功能正确，但代码风格不一致，建议统一放入 Builder 链中（builder 可接受 null 值）。
 
 ---
 
 ## 跨仓接口对齐检查
 
-| 接口 | 前端 | 后端 | 状态 |
-|------|------|------|------|
-| GET /api/v1/employees | ✅ | ✅ | 对齐 |
-| GET /api/v1/employees/{id} | ✅ | ✅ | 对齐 |
-| POST /api/v1/employees | ✅ | ✅ | 对齐 |
-| PUT /api/v1/employees/{id} | ✅ | ✅ | 对齐 |
-| DELETE /api/v1/employees/{id} | ✅ | ✅ | 对齐 |
-| POST /api/v1/employees/import | ✅ | ✅ | 对齐 |
-| GET /api/v1/employees/{id}/costs | ✅ | ✅ | 对齐 |
-| POST /api/v1/employees/{id}/costs | ✅ | ✅ | 对齐 |
-| PUT /api/v1/employees/{id}/costs/{costId} | ❌ 未实现 | ✅ | 前端缺失 |
-| DELETE /api/v1/employees/{id}/costs/{costId} | ✅ | ✅ | 对齐 |
-| GET /api/v1/whitelist/import | ✅ | ✅ | 对齐 |
-| POST /api/v1/whitelist/import | ✅ | ✅ | 对齐 |
-| DELETE /api/v1/whitelist/import/{id} | ✅ | ✅ | 对齐 |
-| GET /api/v1/whitelist/permission | ✅ | ✅ | 对齐 |
-| POST /api/v1/whitelist/permission | ✅ | ✅ | 对齐 |
-| DELETE /api/v1/whitelist/permission/{id} | ✅ | ✅ | 对齐 |
+| 接口 | 前端路径 | 后端路径 | 状态 |
+|------|---------|---------|------|
+| 员工列表 GET | `/api/v1/employees` | `/api/v1/employees` | ✅ 一致 |
+| 员工详情 GET | `/api/v1/employees/{id}` | `/api/v1/employees/{id}` | ✅ 一致 |
+| 创建员工 POST | `/api/v1/employees` | `/api/v1/employees` | ✅ 一致 |
+| 更新员工 PUT | `/api/v1/employees/{id}` | `/api/v1/employees/{id}` | ✅ 一致 |
+| 删除员工 DELETE | `/api/v1/employees/{id}` | `/api/v1/employees/{id}` | ✅ 一致 |
+| 导入 POST | `/api/v1/employees/import` | `/api/v1/employees/import` | ✅ 一致 |
+| 成本预算列表 GET | `/api/v1/employees/{id}/costs` | `/api/v1/employees/{employeeId}/costs` | ✅ 一致 |
+| 创建成本预算 POST | `/api/v1/employees/{id}/costs` | `/api/v1/employees/{employeeId}/costs` | ✅ 一致 |
+| 更新成本预算 PUT | `/api/v1/employees/{id}/costs/{costId}` | `/api/v1/employees/{employeeId}/costs/{costId}` | ✅ 一致 |
+| 删除成本预算 DELETE | `/api/v1/employees/{id}/costs/{costId}` | `/api/v1/employees/{employeeId}/costs/{costId}` | ✅ 一致 |
+| 导入白名单 GET | `/api/v1/whitelist/import` | `/api/v1/whitelist/import` | ✅ 一致 |
+| 创建导入白名单 POST | `/api/v1/whitelist/import` | `/api/v1/whitelist/import` | ✅ 一致 |
+| 删除导入白名单 DELETE | `/api/v1/whitelist/import/{id}` | `/api/v1/whitelist/import/{id}` | ✅ 一致 |
+| 权限白名单 GET | `/api/v1/whitelist/permission` | `/api/v1/whitelist/permission` | ✅ 一致 |
+| 创建权限白名单 POST | `/api/v1/whitelist/permission` | `/api/v1/whitelist/permission` | ✅ 一致 |
+| 删除权限白名单 DELETE | `/api/v1/whitelist/permission/{id}` | `/api/v1/whitelist/permission/{id}` | ✅ 一致 |
 
-**未对齐项**: `PUT /api/v1/employees/{id}/costs/{costId}` 前端未实现编辑功能。
+### 数据模型对齐
 
----
-
-## 数据模型对齐检查
-
-| 字段 | 前端 Employee | 后端 EmployeeResponse | 后端 Employee 实体 | 状态 |
-|------|:---:|:---:|:---:|:---:|
-| id | ✅ | ✅ | ✅ | 对齐 |
-| name | ✅ | ✅ | ✅ | 对齐 |
-| employeeNo | ✅ | ✅ | ✅ | 对齐 |
-| department | ✅ | ✅ | ✅ | 对齐 |
-| position | ✅ | ✅ | ✅ | 对齐 |
-| phone | ✅ | ✅ | ✅ | 对齐 |
-| email | ✅ | ✅ | ✅ | 对齐 |
-| hireDate | ✅ | ✅ | ✅ | 对齐 |
-| salary | ✅ | ✅ | ✅ | 对齐 |
-| bankAccount | ✅ | ✅ | ✅ | 对齐 |
-| education | ✅ | ✅ | ✅ | 对齐 |
-| skills | ✅ | ✅ | ✅ | 对齐 |
-| contractEndDate | ✅ | ✅ | ✅ | 对齐 |
-| address | ✅ | ✅ | ✅ | 对齐 |
-| emergencyContact | ✅ | ✅ | ✅ | 对齐 |
-| emergencyPhone | ✅ | ✅ | ✅ | 对齐 |
-| createdAt | ✅ | ✅ | ❌(实体有) | 对齐 |
-| updatedAt | ✅ | ✅ | ❌(实体有) | 对齐 |
+| 字段 | 前端类型 | 后端类型 | 状态 |
+|------|---------|---------|------|
+| Employee.id | `number` | `Long` | ✅ 兼容 |
+| Employee.name | `string` | `String` | ✅ 一致 |
+| Employee.employeeNo | `string` | `String` | ✅ 一致 |
+| Employee.salary | `number \| null` | `BigDecimal` | ✅ 兼容 |
+| Employee.hireDate | `string` | `LocalDate` | ✅ 兼容 |
+| PageResponse.content | `T[]` | `List<T>` | ✅ 一致 |
+| PageResponse.totalElements | `number` | `long` | ✅ 一致 |
+| PageResponse.currentPage | `number` | `int` | ✅ 一致 |
 
 ---
 
 ## 总结
 
-| 严重性 | 数量 | 说明 |
-|--------|:---:|------|
-| 🔴 **blocking** | 1 | 白名单未在导入流程中强制执行，需要修复 |
-| 🟡 **important** | 5 | 更新工号唯一性、认证缺失、编辑功能缺失、Excel硬编码、未使用OpenCSV |
-| 🟢 **nit** | 5 | 响应体结构、枚举校验、导入静默错误、文件大小校验、字段长度约束 |
+### 已发现的突出问题
 
-**总体评价**: 代码质量良好，功能完整覆盖了需求，前后端接口对齐度高（16/17 接口对齐），测试覆盖合理。建议优先修复 1 个阻塞性问题和 5 个重要问题后合入。
+1. **🔴 `.xls` 文件导入不可用** — 使用 `XSSFWorkbook` 无法读取 OLE2 格式的 `.xls` 文件，需根据扩展名选择 `HSSFWorkbook`。
+2. **🟡 HTTP 状态码不规范** — 所有异常均返回 400，应向客户端提供更准确的语义（404/409/500）。
+3. **🟡 成本预算缺少权限控制** — `WhitelistService.hasPermission()` 已实现但未在成本预算模块中接入。
+4. **🟡 成本预算删除缺少确认** — 直接删除无确认对话框，且 catch 块静默吞异常。
+5. **🟡 日期格式化存在时区隐患** — `toISOString()` 将本地时间转为 UTC 可能导致日期偏移。
+6. **🟡 白名单对话框缺少前端校验** — 可提交空表单数据。
+
+### 总体评价
+
+代码整体架构清晰，前后端功能覆盖了需求中的员工 CRUD、批量导入、成本预算、白名单管理四大模块。跨仓接口契约一致性好（16/16 接口对齐），数据模型对齐度高。主要问题集中在文件导入兼容性（`.xls` 格式）、异常处理语义化、权限控制闭环等方面。
+
+**值得肯定的方面**:
+- 白名单已在导入流程中正确强制执行（`FileImportServiceImpl` 第166-172行）
+- 数据库迁移脚本完整，包含索引和外键约束
+- 前端使用 TypeScript 完整类型定义，跨仓模型对齐
+- 全局异常处理器覆盖了校验异常和文件上传大小异常
+
+---
+
+*生成日期：2025-06-22*  
+*阻塞问题数 (blocker_count): 1*

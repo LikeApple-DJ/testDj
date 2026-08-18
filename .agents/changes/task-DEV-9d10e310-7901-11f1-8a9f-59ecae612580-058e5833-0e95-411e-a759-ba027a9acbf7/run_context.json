@@ -4,7 +4,7 @@
   "skill": "code-review-skill",
   "status": "completed",
   "timestamp": "2025-06-22T00:00:00Z",
-  "summary": "代码评审阶段已完成 - 审查了前后端全部代码，发现1个阻塞性问题、5个重要问题、5个优化建议",
+  "summary": "代码评审已完成 - 审查了前后端全部代码，发现1个阻塞性问题（.xls文件导入不可用）、5个重要问题、5个优化建议，跨仓接口16/16对齐",
   "blocker_count": 1,
   "clarified_items": [
     {
