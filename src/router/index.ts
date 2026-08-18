@@ -42,6 +42,12 @@ const router = createRouter({
       name: 'Whitelist',
       component: () => import('@/views/whitelist/WhitelistView.vue'),
       meta: { title: '白名单管理' }
+    },
+    {
+      path: '/weather',
+      name: 'Weather',
+      component: () => import('@/views/weather/WeatherView.vue'),
+      meta: { title: '天气预报' }
     }
   ]
 })

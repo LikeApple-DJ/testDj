@@ -28,6 +28,10 @@
               <el-icon><Lock /></el-icon>
               <span>白名单管理</span>
             </el-menu-item>
+            <el-menu-item index="/weather">
+              <el-icon><PartlyCloudy /></el-icon>
+              <span>天气预报</span>
+            </el-menu-item>
           </el-menu>
         </el-aside>
         <el-main class="app-main">
@@ -40,6 +44,7 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { PartlyCloudy } from '@element-plus/icons-vue'
 const route = useRoute()
 </script>
 
