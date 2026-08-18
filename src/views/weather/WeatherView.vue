@@ -5,27 +5,41 @@
         <span style="margin-right: 8px">🌤</span>
         {{ weatherData?.city || '杭州' }}未来七天天气预报
       </h1>
-      <el-tag v-if="weatherData?.updateTime" type="info" effect="plain">
-        更新日期: {{ weatherData.updateTime }}
-      </el-tag>
+      <div class="header-right">
+        <el-tag v-if="weatherData?.updateDate" type="info" effect="plain">
+          更新: {{ weatherData.updateDate }}
+        </el-tag>
+        <el-tag v-if="weatherData?.fallback" type="warning" effect="dark" style="margin-left: 8px">
+          ⚠️ 模拟数据
+        </el-tag>
+      </div>
     </div>
 
-    <el-row :gutter="20" v-if="loading">
-      <el-col :span="24" style="text-align: center; padding: 80px 0">
-        <el-icon class="is-loading" :size="40">
-          <Loading />
-        </el-icon>
-        <p style="margin-top: 16px; color: #909399">正在获取天气数据...</p>
-      </el-col>
-    </el-row>
+    <!-- 加载中 -->
+    <div v-if="loading" class="status-center">
+      <el-icon class="is-loading" :size="40">
+        <Loading />
+      </el-icon>
+      <p class="status-text">正在获取天气数据...</p>
+    </div>
 
-    <el-row :gutter="20" v-else-if="error">
-      <el-col :span="24">
-        <el-alert :title="error" type="error" show-icon :closable="false" />
-      </el-col>
-    </el-row>
+    <!-- 错误状态 -->
+    <el-alert
+      v-else-if="error"
+      :title="error"
+      type="error"
+      show-icon
+      :closable="false"
+    />
 
-    <template v-else-if="weatherData?.forecasts">
+    <!-- 空数据状态 -->
+    <el-empty
+      v-else-if="weatherData && weatherData.forecasts?.length === 0"
+      description="暂无天气数据，请稍后重试"
+    />
+
+    <!-- 天气数据 -->
+    <template v-else-if="weatherData?.forecasts?.length">
       <!-- 今日天气概览 -->
       <el-card class="today-card" :body-style="{ padding: '24px' }" v-if="today">
         <div class="today-weather">
@@ -45,7 +59,7 @@
         </div>
       </el-card>
 
-      <!-- 7天预报 -->
+      <!-- 7天预报（从第二天开始，第一天已在今日卡片展示） -->
       <el-row :gutter="16" class="forecast-row">
         <el-col
           v-for="(day, index) in weatherData.forecasts"
@@ -66,13 +80,13 @@
               <div class="day-name">{{ getDayName(day.date, index) }}</div>
               <div class="day-date">{{ formatDate(day.date) }}</div>
             </div>
-            <div class="forecast-icon">{{ day.weatherIcon }}</div>
+            <div class="forecast-icon">{{ day.weatherIcon || '❓' }}</div>
             <div class="forecast-temp">
               <span class="temp-max">{{ Math.round(day.maxTemp) }}°</span>
               <span class="temp-sep">/</span>
               <span class="temp-min">{{ Math.round(day.minTemp) }}°</span>
             </div>
-            <div class="forecast-desc">{{ day.weatherDesc }}</div>
+            <div class="forecast-desc">{{ day.weatherDesc || '未知' }}</div>
             <div class="forecast-detail">
               <el-tooltip content="降水概率" placement="top">
                 <span class="detail-item">
@@ -95,14 +109,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import type { AxiosError } from 'axios'
 import { get7DayForecast } from '@/api/weather'
 import type { WeatherResponse, DailyForecast } from '@/types/weather'
 import { Loading, WaterLevel, WindPower } from '@element-plus/icons-vue'
 
 const weatherData = ref<WeatherResponse | null>(null)
 const loading = ref(false)
-const error = ref('')
+const error = ref<string | null>(null)
 
 const today = computed<DailyForecast | undefined>(() => weatherData.value?.forecasts?.[0])
 
@@ -117,24 +132,54 @@ function getDayName(dateStr: string, index: number): string {
 }
 
 function formatDate(dateStr: string): string {
-  const parts = dateStr.split('-')
-  return `${parts[1]}/${parts[2]}`
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) {
+      // 如果是 yyyy-MM-dd 格式，直接拆分
+      const parts = dateStr.split('-')
+      if (parts.length === 3) return `${parts[1]}/${parts[2]}`
+      return dateStr
+    }
+    return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+  } catch {
+    return dateStr
+  }
 }
 
+// 请求取消控制
+const abortController = ref<AbortController | null>(null)
+
 async function fetchWeather() {
+  // 取消上一次未完成的请求
+  if (abortController.value) {
+    abortController.value.abort()
+  }
+  abortController.value = new AbortController()
+
   loading.value = true
-  error.value = ''
+  error.value = null
   try {
     const res = await get7DayForecast('杭州')
     weatherData.value = res.data
-  } catch (e: any) {
-    error.value = e.response?.data?.error || e.message || '获取天气数据失败，请稍后重试'
+  } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      // 请求被取消，不处理
+      return
+    }
+    const axiosError = e as AxiosError<{ error?: string }>
+    error.value = axiosError.response?.data?.error || axiosError.message || '获取天气数据失败，请稍后重试'
   } finally {
     loading.value = false
   }
 }
 
 onMounted(fetchWeather)
+
+onUnmounted(() => {
+  if (abortController.value) {
+    abortController.value.abort()
+  }
+})
 </script>
 
 <style scoped>
@@ -157,6 +202,21 @@ onMounted(fetchWeather)
   font-weight: 600;
   color: #303133;
   margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.status-center {
+  text-align: center;
+  padding: 80px 0;
+}
+
+.status-text {
+  margin-top: 16px;
+  color: #909399;
 }
 
 .today-card {
@@ -222,11 +282,12 @@ onMounted(fetchWeather)
 
 .forecast-card {
   border-radius: 10px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .forecast-card:hover {
   transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
 .forecast-card.is-today {

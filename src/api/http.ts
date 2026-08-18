@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
 
 const http = axios.create({
   baseURL: '/api/v1',
@@ -9,11 +8,12 @@ const http = axios.create({
   }
 })
 
+// 全局响应拦截器仅做日志记录，不自动弹窗
+// 各组件自行处理错误提示
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.error || error.message || '请求失败'
-    ElMessage.error(message)
+    console.error('[HTTP Error]', error.config?.url, error.response?.status, error.message)
     return Promise.reject(error)
   }
 )
