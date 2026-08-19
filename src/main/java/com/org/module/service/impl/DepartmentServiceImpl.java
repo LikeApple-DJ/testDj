@@ -8,7 +8,6 @@ import com.org.module.service.DepartmentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,7 +41,7 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
         if (id == null) {
             throw new com.org.module.exception.BusinessException("部门ID不能为空");
         }
-        
+
         // 防循环引用：newParentId 不能是 id 自身或其子孙节点
         if (newParentId != null) {
             if (newParentId.equals(id)) {
@@ -67,7 +66,11 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
             if (parent == null) {
                 throw new com.org.module.exception.BusinessException("目标父部门不存在");
             }
-            newPath = parent.getPath() + "-" + id;
+            String parentPath = parent.getPath();
+            if (parentPath == null) {
+                parentPath = String.valueOf(newParentId);
+            }
+            newPath = parentPath + "-" + id;
         }
 
         dept.setParentId(newParentId);
@@ -79,28 +82,38 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
     }
 
     /**
-     * 检查 targetId 是否是 ancestorId 的子孙节点（包括直接子节点和间接后代）
+     * 检查 targetId 是否是 ancestorId 的子孙节点（包括直接子节点和间接后代）。
+     * 利用 path 字段前缀匹配进行判断，避免 N+1 查询。
      */
     private boolean isDescendant(Long ancestorId, Long targetId) {
-        List<Department> children = lambdaQuery().eq(Department::getParentId, ancestorId).list();
-        for (Department child : children) {
-            if (child.getId().equals(targetId) || isDescendant(child.getId(), targetId)) {
-                return true;
-            }
+        Department ancestor = getById(ancestorId);
+        Department target = getById(targetId);
+        if (ancestor == null || target == null) {
+            return false;
         }
-        return false;
+        String ancestorPath = ancestor.getPath();
+        String targetPath = target.getPath();
+        if (ancestorPath == null || targetPath == null) {
+            return false;
+        }
+        return targetPath.startsWith(ancestorPath + "-");
     }
 
     /**
-     * 级联更新子孙部门的 path
+     * 级联更新子孙部门的 path，使用批量更新减少数据库交互次数。
      */
     private void updateDescendantPaths(Long parentId, String parentPath) {
         List<Department> children = lambdaQuery().eq(Department::getParentId, parentId).list();
+        if (children.isEmpty()) {
+            return;
+        }
         for (Department child : children) {
             String childPath = parentPath + "-" + child.getId();
             child.setPath(childPath);
-            updateById(child);
-            updateDescendantPaths(child.getId(), childPath);
+        }
+        updateBatchById(children);
+        for (Department child : children) {
+            updateDescendantPaths(child.getId(), child.getPath());
         }
     }
 }
