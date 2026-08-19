@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法演示</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 8px 16px; margin-right: 10px; cursor: pointer; }
+        pre { background: #f0f0f0; padding: 12px; border-radius: 4px; overflow-x: auto; }
+        label { display: inline-block; width: 80px; }
+        input, textarea { width: 300px; padding: 6px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <h1>算法演示控制台</h1>
+
+    <div class="section">
+        <h2>HelloWorld</h2>
+        <label for="helloName">Name:</label>
+        <input id="helloName" type="text" value="Alice" />
+        <button id="btnHello">调用 /api/hello</button>
+        <pre id="helloResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>哈希算法</h2>
+        <label for="hashAlgo">算法:</label>
+        <input id="hashAlgo" type="text" value="SHA256" />
+        <br/>
+        <label for="hashContent">内容:</label>
+        <input id="hashContent" type="text" value="hello" />
+        <br/>
+        <button id="btnHash">调用 /api/hash</button>
+        <pre id="hashResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>冒泡排序</h2>
+        <label for="sortArray">数组:</label>
+        <input id="sortArray" type="text" value="[3,1,4,1,5,9,2,6]" />
+        <br/>
+        <label for="sortOrder">方向:</label>
+        <input id="sortOrder" type="text" value="ASC" />
+        <br/>
+        <button id="btnSort">调用 /api/sort/bubble</button>
+        <pre id="sortResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>导出结果</h2>
+        <label for="exportType">类型:</label>
+        <select id="exportType">
+            <option value="hello">hello</option>
+            <option value="hash">hash</option>
+            <option value="bubbleSort">bubbleSort</option>
+        </select>
+        <br/>
+        <label for="exportFormat">格式:</label>
+        <select id="exportFormat">
+            <option value="CSV">CSV</option>
+            <option value="JSON">JSON</option>
+        </select>
+        <br/>
+        <button id="btnExport">导出 /api/export</button>
+        <pre id="exportResult"></pre>
+    </div>
+
+    <script>
+        const apiBase = '/api';
+
+        async function post(path, body) {
+            const response = await fetch(apiBase + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return response.json();
+        }
+
+        async function get(path) {
+            const response = await fetch(apiBase + path);
+            return response.json();
+        }
+
+        document.getElementById('btnHello').addEventListener('click', async () => {
+            const name = document.getElementById('helloName').value;
+            const data = await get('/hello?name=' + encodeURIComponent(name));
+            document.getElementById('helloResult').textContent = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById('btnHash').addEventListener('click', async () => {
+            const body = {
+                algorithm: document.getElementById('hashAlgo').value,
+                content: document.getElementById('hashContent').value
+            };
+            const data = await post('/hash', body);
+            document.getElementById('hashResult').textContent = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById('btnSort').addEventListener('click', async () => {
+            const body = {
+                array: JSON.parse(document.getElementById('sortArray').value),
+                order: document.getElementById('sortOrder').value
+            };
+            const data = await post('/sort/bubble', body);
+            document.getElementById('sortResult').textContent = JSON.stringify(data, null, 2);
+        });
+
+        document.getElementById('btnExport').addEventListener('click', async () => {
+            const type = document.getElementById('exportType').value;
+            const format = document.getElementById('exportFormat').value;
+            let params = {};
+            if (type === 'hello') {
+                params = { name: document.getElementById('helloName').value };
+            } else if (type === 'hash') {
+                params = {
+                    algorithm: document.getElementById('hashAlgo').value,
+                    content: document.getElementById('hashContent').value
+                };
+            } else if (type === 'bubbleSort') {
+                params = {
+                    array: JSON.parse(document.getElementById('sortArray').value),
+                    order: document.getElementById('sortOrder').value
+                };
+            }
+            const data = await post('/export', { type, format, params });
+            document.getElementById('exportResult').textContent = JSON.stringify(data, null, 2);
+        });
+    </script>
+</body>
+</html>
