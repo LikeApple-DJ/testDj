@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dtcode.demo.analytics.dao.mapper.ApiCallLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.dtcode.demo.analytics.dao.entity.ApiCallLogDO">
+        <id column="id" property="id"/>
+        <result column="api_name" property="apiName"/>
+        <result column="caller_id" property="callerId"/>
+        <result column="caller_name" property="callerName"/>
+        <result column="caller_type" property="callerType"/>
+        <result column="caller_level" property="callerLevel"/>
+        <result column="caller_dept" property="callerDept"/>
+        <result column="request_params" property="requestParams"/>
+        <result column="response_status" property="responseStatus"/>
+        <result column="call_duration_ms" property="callDurationMs"/>
+        <result column="gmt_create" property="gmtCreate"/>
+        <result column="gmt_modified" property="gmtModified"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.dtcode.demo.analytics.dao.entity.ApiCallLogDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO api_call_log (
+            api_name, caller_id, caller_name, caller_type, caller_level,
+            caller_dept, request_params, response_status, call_duration_ms
+        ) VALUES (
+            #{apiName}, #{callerId}, #{callerName}, #{callerType}, #{callerLevel},
+            #{callerDept}, #{requestParams}, #{responseStatus}, #{callDurationMs}
+        )
+    </insert>
+
+    <select id="selectSummary" resultType="java.util.Map">
+        SELECT
+            ${dimension} AS groupKey,
+            COUNT(*) AS callCount,
+            COUNT(DISTINCT caller_id) AS uniqueCallers
+        FROM api_call_log
+        WHERE gmt_create BETWEEN #{startDate} AND #{endDate}
+        <if test="apiName != null and apiName != ''">
+            AND api_name = #{apiName}
+        </if>
+        GROUP BY ${dimension}
+        ORDER BY callCount DESC
+    </select>
+
+    <select id="selectTrend" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(gmt_create, #{dateFormat}) AS timeLabel,
+            COUNT(*) AS callCount
+        FROM api_call_log
+        WHERE gmt_create BETWEEN #{startDate} AND #{endDate}
+        <if test="apiName != null and apiName != ''">
+            AND api_name = #{apiName}
+        </if>
+        GROUP BY DATE_FORMAT(gmt_create, #{dateFormat})
+        ORDER BY timeLabel ASC
+    </select>
+
+    <select id="selectDistribution" resultType="java.util.Map">
+        SELECT
+            IFNULL(${dimension}, '未知') AS groupKey,
+            COUNT(*) AS callCount
+        FROM api_call_log
+        WHERE gmt_create BETWEEN #{startDate} AND #{endDate}
+        <if test="apiName != null and apiName != ''">
+            AND api_name = #{apiName}
+        </if>
+        GROUP BY ${dimension}
+        ORDER BY callCount DESC
+    </select>
+
+    <select id="selectTotalCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM api_call_log
+        WHERE gmt_create BETWEEN #{startDate} AND #{endDate}
+        <if test="apiName != null and apiName != ''">
+            AND api_name = #{apiName}
+        </if>
+    </select>
+
+</mapper>
