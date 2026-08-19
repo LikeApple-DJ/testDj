@@ -1,0 +1,14 @@
+{
+  "blocker_count": 0,
+  "p0_count": 0,
+  "p1_count": 4,
+  "p2_count": 2,
+  "review_date": "2025-08-19",
+  "change_name": "分别写三个接口helloworld_哈希",
+  "branch": "AI/task-DEV-9d10e310-7901-11f1-8a9f-59ecae612580-4440cdb6-f20d-4be3-935e-02bfcba73d89",
+  "java_file_count": 17,
+  "changed_lines": "+2310 / -0",
+  "merge_recommendation": "修复后合并",
+  "scan_rules_coverage": "52/222",
+  "scan_script_p0_false_positives": 5
+}
