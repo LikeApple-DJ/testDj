@@ -14,6 +14,18 @@ import java.util.List;
 public interface DemoService {
 
     /**
+     * 设置当前线程的调用者上下文（由 Controller 层调用）
+     *
+     * @param callerId 调用人ID
+     */
+    void setCallerContext(String callerId);
+
+    /**
+     * 清除当前线程的调用者上下文
+     */
+    void clearCallerContext();
+
+    /**
      * HelloWorld 问候
      *
      * @param name 名称，可为null
@@ -36,4 +48,12 @@ public interface DemoService {
      * @return 排序结果
      */
     BubbleSortDTO bubbleSort(List<Integer> numbers);
+
+    /**
+     * 获取当前用户的最近执行结果缓存
+     *
+     * @param cacheKey 缓存键
+     * @return 缓存的结果对象，不存在返回null
+     */
+    Object getCachedResult(String cacheKey);
 }

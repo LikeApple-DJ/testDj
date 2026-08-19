@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,23 +34,40 @@ public class DemoServiceImpl implements DemoService {
     private static final String HASH_ALGORITHM = "SHA-256";
     private static final int MAX_ARRAY_SIZE = 10000;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final ZoneId ZONE_SHANGHAI = ZoneId.of("Asia/Shanghai");
 
     /**
-     * 最近执行结果缓存（按接口类型缓存，用于导出）
+     * 按用户维度隔离的执行结果缓存（外层 key 为 callerId，内层 key 为接口类型）
      */
-    private final ConcurrentHashMap<String, Object> resultCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, Object>> userResultCache =
+            new ConcurrentHashMap<>();
+
+    /**
+     * 当前线程的调用者上下文（由 Controller 层设置）
+     */
+    private static final ThreadLocal<String> CURRENT_CALLER_ID = new ThreadLocal<>();
 
     public static final String CACHE_KEY_HELLOWORLD = "helloworld";
     public static final String CACHE_KEY_HASH = "hash";
     public static final String CACHE_KEY_BUBBLE_SORT = "bubble-sort";
 
     @Override
+    public void setCallerContext(String callerId) {
+        CURRENT_CALLER_ID.set(callerId != null ? callerId : "UNKNOWN");
+    }
+
+    @Override
+    public void clearCallerContext() {
+        CURRENT_CALLER_ID.remove();
+    }
+
+    @Override
     public HelloWorldDTO helloWorld(String name) {
         String actualName = (name == null || name.trim().isEmpty()) ? DEFAULT_NAME : name.trim();
         String result = "Hello, " + actualName + "!";
-        String timestamp = LocalDateTime.now().format(FORMATTER);
+        String timestamp = LocalDateTime.now(ZONE_SHANGHAI).format(FORMATTER);
         HelloWorldDTO dto = new HelloWorldDTO(result, timestamp);
-        resultCache.put(CACHE_KEY_HELLOWORLD, dto);
+        putCacheResult(CACHE_KEY_HELLOWORLD, dto);
         return dto;
     }
 
@@ -62,9 +80,9 @@ public class DemoServiceImpl implements DemoService {
             MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             String hashValue = bytesToHex(hashBytes);
-            String timestamp = LocalDateTime.now().format(FORMATTER);
+            String timestamp = LocalDateTime.now(ZONE_SHANGHAI).format(FORMATTER);
             HashDTO dto = new HashDTO(input, HASH_ALGORITHM, hashValue, timestamp);
-            resultCache.put(CACHE_KEY_HASH, dto);
+            putCacheResult(CACHE_KEY_HASH, dto);
             return dto;
         } catch (NoSuchAlgorithmException e) {
             logger.error("SHA-256算法不可用: {}", e.getMessage(), e);
@@ -101,20 +119,38 @@ public class DemoServiceImpl implements DemoService {
             }
         }
 
-        String timestamp = LocalDateTime.now().format(FORMATTER);
+        String timestamp = LocalDateTime.now(ZONE_SHANGHAI).format(FORMATTER);
         BubbleSortDTO dto = new BubbleSortDTO(original, sorted, timestamp);
-        resultCache.put(CACHE_KEY_BUBBLE_SORT, dto);
+        putCacheResult(CACHE_KEY_BUBBLE_SORT, dto);
         return dto;
     }
 
+    @Override
+    public Object getCachedResult(String cacheKey) {
+        String callerId = CURRENT_CALLER_ID.get();
+        if (callerId == null) {
+            callerId = "UNKNOWN";
+        }
+        ConcurrentHashMap<String, Object> callerCache = userResultCache.get(callerId);
+        if (callerCache == null) {
+            return null;
+        }
+        return callerCache.get(cacheKey);
+    }
+
     /**
-     * 获取最近执行结果缓存
+     * 将执行结果缓存到当前用户的隔离空间
      *
      * @param cacheKey 缓存键
-     * @return 缓存的结果对象，不存在返回null
+     * @param result   结果对象
      */
-    public Object getCachedResult(String cacheKey) {
-        return resultCache.get(cacheKey);
+    private void putCacheResult(String cacheKey, Object result) {
+        String callerId = CURRENT_CALLER_ID.get();
+        if (callerId == null) {
+            callerId = "UNKNOWN";
+        }
+        userResultCache.computeIfAbsent(callerId, k -> new ConcurrentHashMap<>())
+                .put(cacheKey, result);
     }
 
     /**

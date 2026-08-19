@@ -4,6 +4,7 @@ import com.dtcode.demo.common.exception.BusinessException;
 import com.dtcode.demo.demo.model.dto.BubbleSortDTO;
 import com.dtcode.demo.demo.model.dto.HashDTO;
 import com.dtcode.demo.demo.model.dto.HelloWorldDTO;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,12 @@ class DemoServiceImplTest {
     @BeforeEach
     void setUp() {
         demoService = new DemoServiceImpl();
+        demoService.setCallerContext("test-user");
+    }
+
+    @AfterEach
+    void tearDown() {
+        demoService.clearCallerContext();
     }
 
     // ========== HelloWorld 测试 ==========

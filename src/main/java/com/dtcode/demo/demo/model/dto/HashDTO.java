@@ -56,6 +56,11 @@ public class HashDTO {
 
     @Override
     public String toString() {
-        return "HashDTO{input='" + input + "', algorithm='" + algorithm + "', hashValue='" + hashValue + "', timestamp='" + timestamp + "'}";
+        return "HashDTO{"
+                + "input='" + input + '\''
+                + ", algorithm='" + algorithm + '\''
+                + ", hashValue='" + hashValue + '\''
+                + ", timestamp='" + timestamp + '\''
+                + '}';
     }
 }

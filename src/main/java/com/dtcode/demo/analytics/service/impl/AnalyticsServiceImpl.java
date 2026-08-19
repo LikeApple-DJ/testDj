@@ -15,10 +15,11 @@ import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -46,15 +47,17 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     @Async("asyncExecutor")
-    public void recordCallAsync(String apiName, String requestParams, long durationMs) {
+    public void recordCallAsync(String apiName, String requestParams, long durationMs,
+                                String callerId, String callerName, String callerType,
+                                String callerLevel, String callerDept) {
         try {
             ApiCallLogDO logDO = new ApiCallLogDO();
             logDO.setApiName(apiName);
-            logDO.setCallerId("UNKNOWN");
-            logDO.setCallerName("");
-            logDO.setCallerType("");
-            logDO.setCallerLevel("");
-            logDO.setCallerDept("");
+            logDO.setCallerId(callerId != null ? callerId : "UNKNOWN");
+            logDO.setCallerName(callerName != null ? callerName : "");
+            logDO.setCallerType(callerType != null ? callerType : "");
+            logDO.setCallerLevel(callerLevel != null ? callerLevel : "");
+            logDO.setCallerDept(callerDept != null ? callerDept : "");
             logDO.setRequestParams(requestParams);
             logDO.setResponseStatus(ResponseStatusEnum.SUCCESS.getCode());
             logDO.setCallDurationMs((int) durationMs);
@@ -73,6 +76,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
      * @param endDate   结束日期
      * @return 汇总统计结果
      */
+    @Override
     public CallSummaryDTO getSummary(String dimension, String apiName, String startDate, String endDate) {
         validateDimension(dimension);
         Date[] dates = parseDateRange(startDate, endDate);
@@ -102,6 +106,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
      * @param endDate     结束日期
      * @return 趋势数据
      */
+    @Override
     public TrendDTO getTrend(String apiName, String granularity, String startDate, String endDate) {
         if (granularity == null || granularity.trim().isEmpty()) {
             granularity = "day";
@@ -137,6 +142,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
      * @param endDate   结束日期
      * @return 分布数据
      */
+    @Override
     public DistributionDTO getDistribution(String dimension, String apiName, String startDate, String endDate) {
         validateDimension(dimension);
         Date[] dates = parseDateRange(startDate, endDate);
@@ -175,21 +181,22 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             Date start;
             Date end;
             if (endDate == null || endDate.trim().isEmpty()) {
-                end = new Date();
+                end = Date.from(Instant.now());
             } else {
                 end = sdf.parse(endDate);
             }
             if (startDate == null || startDate.trim().isEmpty()) {
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(end);
-                cal.add(Calendar.DAY_OF_MONTH, -DEFAULT_DATE_RANGE_DAYS);
-                start = cal.getTime();
+                LocalDate endDateLocal = end.toInstant()
+                        .atZone(ZoneId.systemDefault()).toLocalDate();
+                start = java.sql.Date.valueOf(
+                        endDateLocal.minusDays(DEFAULT_DATE_RANGE_DAYS));
             } else {
                 start = sdf.parse(startDate);
             }
             return new Date[]{start, end};
         } catch (ParseException e) {
-            throw new BusinessException("ANALYTICS_002", "日期格式无效，请使用 yyyy-MM-dd 格式");
+            throw new BusinessException("ANALYTICS_002",
+                    "日期格式无效，请使用 yyyy-MM-dd 格式", e);
         }
     }
 
