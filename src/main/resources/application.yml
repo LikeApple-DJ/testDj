@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: algorithm-demo
+
+logging:
+  level:
+    com.algorithm.demo: INFO
