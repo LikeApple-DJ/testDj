@@ -39,3 +39,18 @@
 - Status: complete
 - Files: EmployeeController.java, DepartmentController.java, GlobalExceptionHandler.java
 - Commits: a6606b5..9782abc
+
+## Task 9: Backend Fixes (path calculation, CORS, optimistic lock 409)
+- Status: complete
+- Files: DepartmentServiceImpl.java, CorsConfig.java, GlobalExceptionHandler.java
+- Commits: d23851a
+
+## Task 10: Frontend Vue3 Project Setup
+- Status: complete
+- Files: frontend/package.json, frontend/vite.config.js, frontend/index.html, frontend/src/main.js
+- Commits: d23851a
+
+## Task 11: Frontend Components (DepartmentTree, EmployeeTable, Forms)
+- Status: complete
+- Files: frontend/src/components/*.vue, frontend/src/api/*.js
+- Commits: d23851a
