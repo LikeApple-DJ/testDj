@@ -57,7 +57,7 @@ class ExportServiceImplTest {
         // Assert
         assertThat(result.getFilename()).isEqualTo("export_hello.csv");
         assertThat(result.getContentType()).isEqualTo("text/csv;charset=UTF-8");
-        assertThat(result.getContent()).contains("hello,Hello, Test!");
+        assertThat(result.getContent()).contains("hello,\"Hello, Test!\"");
     }
 
     @Test

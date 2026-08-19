@@ -14,6 +14,8 @@ import com.example.algodemo.service.model.SortResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,6 +26,8 @@ import java.util.Map;
  */
 @Service
 public class ExportServiceImpl implements ExportService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ExportServiceImpl.class);
 
     private static final String DEFAULT_FILE_NAME = "export";
     private static final String CONTENT_TYPE_CSV = "text/csv;charset=UTF-8";
@@ -95,6 +99,7 @@ public class ExportServiceImpl implements ExportService {
                     String content = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
                     yield new ExportResult(filename + ".json", content, CONTENT_TYPE_JSON);
                 } catch (JsonProcessingException e) {
+                    logger.error("导出结果 JSON 序列化失败, type={}", type, e);
                     throw new BusinessException(AlgorithmErrorCode.ALG_004);
                 }
             }
@@ -108,7 +113,7 @@ public class ExportServiceImpl implements ExportService {
             map = (Map<String, Object>) data;
         }
         return switch (type) {
-            case HELLO -> "type,result\nhello," + map.getOrDefault("greeting", "") + "\n";
+            case HELLO -> "type,result\nhello," + escapeCsv(String.valueOf(map.getOrDefault("greeting", ""))) + "\n";
             case HASH -> {
                 HashResult hashResult = (HashResult) data;
                 yield "algorithm,content,digest\n"
