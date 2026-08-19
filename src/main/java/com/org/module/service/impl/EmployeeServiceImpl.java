@@ -19,11 +19,14 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
 
     private final TransferRecordMapper transferRecordMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.org.module.service.DepartmentService departmentService;
 
     public EmployeeServiceImpl(TransferRecordMapper transferRecordMapper,
-                               ApplicationEventPublisher eventPublisher) {
+                               ApplicationEventPublisher eventPublisher,
+                               com.org.module.service.DepartmentService departmentService) {
         this.transferRecordMapper = transferRecordMapper;
         this.eventPublisher = eventPublisher;
+        this.departmentService = departmentService;
     }
 
     @Override
@@ -45,6 +48,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         if (checkFieldExists("phone", dto.getPhone())) {
             throw new com.org.module.exception.BusinessException("手机号已存在");
         }
+        if (departmentService.getById(dto.getDeptId()) == null) {
+            throw new com.org.module.exception.BusinessException("部门不存在");
+        }
         Employee emp = new Employee();
         emp.setName(dto.getName());
         emp.setEmployeeNo(dto.getEmployeeNo());
@@ -61,6 +67,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         Employee employee = getById(id);
         if (employee == null) {
             throw new com.org.module.exception.BusinessException("员工不存在");
+        }
+        if (departmentService.getById(dto.getNewDeptId()) == null) {
+            throw new com.org.module.exception.BusinessException("目标部门不存在");
         }
         Long oldDeptId = employee.getDeptId();
         String oldPosition = employee.getPosition();
