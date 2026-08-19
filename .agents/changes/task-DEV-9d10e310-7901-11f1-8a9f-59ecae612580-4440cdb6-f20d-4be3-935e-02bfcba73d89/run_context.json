@@ -1,14 +1,37 @@
 {
   "blocker_count": 0,
   "p0_count": 0,
-  "p1_count": 4,
-  "p2_count": 2,
+  "p1_count": 0,
+  "p2_count": 0,
   "review_date": "2025-08-19",
+  "fix_date": "2025-08-19",
   "change_name": "分别写三个接口helloworld_哈希",
   "branch": "AI/task-DEV-9d10e310-7901-11f1-8a9f-59ecae612580-4440cdb6-f20d-4be3-935e-02bfcba73d89",
-  "java_file_count": 17,
-  "changed_lines": "+2310 / -0",
-  "merge_recommendation": "修复后合并",
+  "java_file_count": 18,
+  "changed_lines": "+2380 / -0",
+  "merge_recommendation": "建议合并",
   "scan_rules_coverage": "52/222",
-  "scan_script_p0_false_positives": 5
+  "scan_script_p0_false_positives": 5,
+  "initial_issues": {
+    "p0": 0,
+    "p1": 4,
+    "p2": 2
+  },
+  "fixed_issues": {
+    "p1": [
+      "GlobalExceptionHandler 新增 MethodArgumentNotValidException + HttpMessageNotReadableException 处理器",
+      "AlgorithmController.sort() 消除重复计算，bubbleSort 返回 SortResult(sorted, swapCount)",
+      "AlgorithmController.hello() 统一时间戳来源，Service 返回固定消息",
+      "错误码对齐 Spec: ALGO_002/004/005/006"
+    ],
+    "p2": [
+      "AlgorithmController 通配符导入替换为具体类导入",
+      "AlgorithmServiceImpl bytesToHex 改用 Java 17 HexFormat"
+    ]
+  },
+  "remaining_issues": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 0
+  }
 }

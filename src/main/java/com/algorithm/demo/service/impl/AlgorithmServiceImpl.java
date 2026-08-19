@@ -1,6 +1,7 @@
 package com.algorithm.demo.service.impl;
 
 import com.algorithm.demo.common.BusinessException;
+import com.algorithm.demo.model.dto.SortResult;
 import com.algorithm.demo.service.AlgorithmService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +10,8 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 
 /**
@@ -24,25 +24,23 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 
     private static final Logger log = LoggerFactory.getLogger(AlgorithmServiceImpl.class);
     private static final String HASH_ALGORITHM = "SHA-256";
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     @Override
     public String hello() {
-        String timestamp = LocalDateTime.now().format(FORMATTER);
-        log.info("执行 HelloWorld, timestamp={}", timestamp);
-        return "Hello World [" + timestamp + "]";
+        log.info("执行 HelloWorld");
+        return "Hello World";
     }
 
     @Override
     public String hash(String input) {
         if (input == null || input.isBlank()) {
-            throw new IllegalArgumentException("输入字符串不能为空");
+            throw new BusinessException("ALGO_002", "输入字符串不能为空");
         }
         long startTime = System.currentTimeMillis();
         try {
             MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            String hashValue = bytesToHex(hashBytes);
+            String hashValue = HexFormat.of().formatHex(hashBytes);
             long cost = System.currentTimeMillis() - startTime;
             log.info("执行 SHA-256 哈希, inputLength={}, cost={}ms", input.length(), cost);
             return hashValue;
@@ -53,9 +51,9 @@ public class AlgorithmServiceImpl implements AlgorithmService {
     }
 
     @Override
-    public List<Integer> bubbleSort(List<Integer> numbers) {
+    public SortResult bubbleSort(List<Integer> numbers) {
         if (numbers == null || numbers.isEmpty()) {
-            throw new IllegalArgumentException("排序列表不能为空");
+            throw new BusinessException("ALGO_004", "排序列表不能为空");
         }
         if (numbers.size() > 10000) {
             throw new BusinessException("ALGO_006", "排序列表长度不能超过10000");
@@ -86,17 +84,6 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 
         long cost = System.currentTimeMillis() - startTime;
         log.info("执行冒泡排序, size={}, swapCount={}, cost={}ms", n, swapCount, cost);
-        return list;
-    }
-
-    /**
-     * 字节数组转十六进制字符串
-     */
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
+        return new SortResult(list, swapCount);
     }
 }

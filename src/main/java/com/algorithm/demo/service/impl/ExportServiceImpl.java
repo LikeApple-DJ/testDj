@@ -2,6 +2,7 @@ package com.algorithm.demo.service.impl;
 
 import com.algorithm.demo.common.AlgorithmType;
 import com.algorithm.demo.common.BusinessException;
+import com.algorithm.demo.model.dto.SortResult;
 import com.algorithm.demo.service.AlgorithmService;
 import com.algorithm.demo.service.ExportService;
 import org.slf4j.Logger;
@@ -95,7 +96,8 @@ public class ExportServiceImpl implements ExportService {
      */
     private String buildSortCsv(String input) {
         List<Integer> numbers = parseNumbers(input);
-        List<Integer> sorted = algorithmService.bubbleSort(numbers);
+        SortResult sortResult = algorithmService.bubbleSort(numbers);
+        List<Integer> sorted = sortResult.getSorted();
         StringBuilder sb = new StringBuilder();
         sb.append("原始列表,排序结果\n");
         sb.append(escapeCsv(numbers.toString())).append(",").append(escapeCsv(sorted.toString())).append("\n");

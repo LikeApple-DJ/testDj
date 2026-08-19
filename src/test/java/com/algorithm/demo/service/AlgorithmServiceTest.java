@@ -1,5 +1,7 @@
 package com.algorithm.demo.service;
 
+import com.algorithm.demo.common.BusinessException;
+import com.algorithm.demo.model.dto.SortResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,19 +36,17 @@ class AlgorithmServiceTest {
 
         // Assert
         assertNotNull(result);
-        assertTrue(result.contains("Hello World"));
+        assertEquals("Hello World", result);
     }
 
     @Test
-    @DisplayName("hello - 返回结果包含时间戳")
-    void should_returnTimestamp_when_callHello() {
+    @DisplayName("hello - 返回固定消息不含时间戳")
+    void should_returnFixedMessage_when_callHello() {
         // Act
         String result = algorithmService.hello();
 
         // Assert
-        assertNotNull(result);
-        // 时间戳格式应包含日期时间信息
-        assertTrue(result.length() > "Hello World".length());
+        assertEquals("Hello World", result);
     }
 
     // ==================== hash() 测试 ====================
@@ -92,30 +92,33 @@ class AlgorithmServiceTest {
     }
 
     @Test
-    @DisplayName("hash - 输入为空时抛出异常")
+    @DisplayName("hash - 输入为 null 时抛出 BusinessException ALGO_002")
     void should_throwException_when_inputIsNull() {
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
             algorithmService.hash(null);
         });
+        assertEquals("ALGO_002", ex.getErrorCode());
     }
 
     @Test
-    @DisplayName("hash - 输入为空字符串时抛出异常")
+    @DisplayName("hash - 输入为空字符串时抛出 BusinessException ALGO_002")
     void should_throwException_when_inputIsEmpty() {
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
             algorithmService.hash("");
         });
+        assertEquals("ALGO_002", ex.getErrorCode());
     }
 
     @Test
-    @DisplayName("hash - 输入为空白字符串时抛出异常")
+    @DisplayName("hash - 输入为空白字符串时抛出 BusinessException ALGO_002")
     void should_throwException_when_inputIsBlank() {
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
             algorithmService.hash("   ");
         });
+        assertEquals("ALGO_002", ex.getErrorCode());
     }
 
     // ==================== bubbleSort() 测试 ====================
@@ -127,23 +130,25 @@ class AlgorithmServiceTest {
         List<Integer> numbers = Arrays.asList(5, 3, 8, 1, 2);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Arrays.asList(1, 2, 3, 5, 8), result);
+        assertEquals(Arrays.asList(1, 2, 3, 5, 8), result.getSorted());
+        assertTrue(result.getSwapCount() > 0);
     }
 
     @Test
-    @DisplayName("bubbleSort - 已排序列表保持不变")
-    void should_returnSameList_when_alreadySorted() {
+    @DisplayName("bubbleSort - 已排序列表交换次数为 0")
+    void should_returnZeroSwapCount_when_alreadySorted() {
         // Arrange
         List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), result);
+        assertEquals(Arrays.asList(1, 2, 3, 4, 5), result.getSorted());
+        assertEquals(0, result.getSwapCount());
     }
 
     @Test
@@ -153,10 +158,10 @@ class AlgorithmServiceTest {
         List<Integer> numbers = Arrays.asList(5, 4, 3, 2, 1);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), result);
+        assertEquals(Arrays.asList(1, 2, 3, 4, 5), result.getSorted());
     }
 
     @Test
@@ -166,10 +171,11 @@ class AlgorithmServiceTest {
         List<Integer> numbers = Collections.singletonList(42);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Collections.singletonList(42), result);
+        assertEquals(Collections.singletonList(42), result.getSorted());
+        assertEquals(0, result.getSwapCount());
     }
 
     @Test
@@ -179,10 +185,10 @@ class AlgorithmServiceTest {
         List<Integer> numbers = Arrays.asList(3, 1, 4, 1, 5, 9, 2, 6, 5);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Arrays.asList(1, 1, 2, 3, 4, 5, 5, 6, 9), result);
+        assertEquals(Arrays.asList(1, 1, 2, 3, 4, 5, 5, 6, 9), result.getSorted());
     }
 
     @Test
@@ -192,28 +198,30 @@ class AlgorithmServiceTest {
         List<Integer> numbers = Arrays.asList(3, -1, 4, -5, 2);
 
         // Act
-        List<Integer> result = algorithmService.bubbleSort(numbers);
+        SortResult result = algorithmService.bubbleSort(numbers);
 
         // Assert
-        assertEquals(Arrays.asList(-5, -1, 2, 3, 4), result);
+        assertEquals(Arrays.asList(-5, -1, 2, 3, 4), result.getSorted());
     }
 
     @Test
-    @DisplayName("bubbleSort - 输入为空列表时抛出异常")
+    @DisplayName("bubbleSort - 输入为空列表时抛出 BusinessException ALGO_004")
     void should_throwException_when_listIsEmpty() {
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
             algorithmService.bubbleSort(Collections.emptyList());
         });
+        assertEquals("ALGO_004", ex.getErrorCode());
     }
 
     @Test
-    @DisplayName("bubbleSort - 输入为 null 时抛出异常")
+    @DisplayName("bubbleSort - 输入为 null 时抛出 BusinessException ALGO_004")
     void should_throwException_when_listIsNull() {
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
             algorithmService.bubbleSort(null);
         });
+        assertEquals("ALGO_004", ex.getErrorCode());
     }
 
     @Test
@@ -228,5 +236,18 @@ class AlgorithmServiceTest {
 
         // Assert
         assertEquals(expected, original);
+    }
+
+    @Test
+    @DisplayName("bubbleSort - 返回正确的交换次数")
+    void should_returnCorrectSwapCount_when_sort() {
+        // Arrange: [5,3,8,1,2] 冒泡排序交换次数应为 7
+        List<Integer> numbers = Arrays.asList(5, 3, 8, 1, 2);
+
+        // Act
+        SortResult result = algorithmService.bubbleSort(numbers);
+
+        // Assert
+        assertEquals(7, result.getSwapCount());
     }
 }

@@ -1,5 +1,7 @@
 package com.algorithm.demo.service;
 
+import com.algorithm.demo.model.dto.SortResult;
+
 import java.util.List;
 
 /**
@@ -12,7 +14,7 @@ public interface AlgorithmService {
     /**
      * 执行 HelloWorld 算法
      *
-     * @return HelloWorld 消息字符串（含时间戳）
+     * @return 固定消息 "Hello World"
      */
     String hello();
 
@@ -21,16 +23,16 @@ public interface AlgorithmService {
      *
      * @param input 待计算的输入字符串
      * @return 哈希值（十六进制字符串）
-     * @throws IllegalArgumentException 输入为空或空白时抛出
+     * @throws com.algorithm.demo.common.BusinessException 输入为空时抛出 ALGO_002
      */
     String hash(String input);
 
     /**
-     * 执行冒泡排序（升序）
+     * 执行冒泡排序（升序），返回排序结果和交换次数
      *
      * @param numbers 待排序的整数列表
-     * @return 排序后的新列表（不修改原始列表）
-     * @throws IllegalArgumentException 列表为空或 null 时抛出
+     * @return SortResult 包含排序后的新列表和交换次数（不修改原始列表）
+     * @throws com.algorithm.demo.common.BusinessException 列表为空时抛出 ALGO_004
      */
-    List<Integer> bubbleSort(List<Integer> numbers);
+    SortResult bubbleSort(List<Integer> numbers);
 }

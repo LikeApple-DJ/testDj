@@ -1,16 +1,24 @@
 package com.algorithm.demo.controller;
 
 import com.algorithm.demo.common.Result;
-import com.algorithm.demo.model.dto.*;
+import com.algorithm.demo.model.dto.HashRequest;
+import com.algorithm.demo.model.dto.HashResponse;
+import com.algorithm.demo.model.dto.HelloResponse;
+import com.algorithm.demo.model.dto.SortRequest;
+import com.algorithm.demo.model.dto.SortResponse;
+import com.algorithm.demo.model.dto.SortResult;
 import com.algorithm.demo.service.AlgorithmService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * 算法控制器
@@ -41,7 +49,7 @@ public class AlgorithmController {
         log.info("接口 /api/algorithm/hello 调用, cost={}ms", cost);
 
         HelloResponse response = new HelloResponse(
-                "Hello World",
+                message,
                 LocalDateTime.now().format(FORMATTER)
         );
         return Result.success(response);
@@ -72,44 +80,16 @@ public class AlgorithmController {
     @PostMapping("/sort")
     public Result<SortResponse> sort(@Valid @RequestBody SortRequest request) {
         long startTime = System.currentTimeMillis();
-        List<Integer> sorted = algorithmService.bubbleSort(request.getNumbers());
+        SortResult sortResult = algorithmService.bubbleSort(request.getNumbers());
         long cost = System.currentTimeMillis() - startTime;
         log.info("接口 /api/algorithm/sort 调用, size={}, cost={}ms",
                 request.getNumbers().size(), cost);
 
-        // 计算交换次数（重新执行一次以统计）
-        int swapCount = countSwaps(request.getNumbers());
-
         SortResponse response = new SortResponse(
                 request.getNumbers(),
-                sorted,
-                swapCount
+                sortResult.getSorted(),
+                sortResult.getSwapCount()
         );
         return Result.success(response);
-    }
-
-    /**
-     * 统计冒泡排序交换次数
-     */
-    private int countSwaps(List<Integer> numbers) {
-        List<Integer> list = new java.util.ArrayList<>(numbers);
-        int n = list.size();
-        int swapCount = 0;
-        for (int i = 0; i < n - 1; i++) {
-            boolean swapped = false;
-            for (int j = 0; j < n - 1 - i; j++) {
-                if (list.get(j) > list.get(j + 1)) {
-                    int temp = list.get(j);
-                    list.set(j, list.get(j + 1));
-                    list.set(j + 1, temp);
-                    swapCount++;
-                    swapped = true;
-                }
-            }
-            if (!swapped) {
-                break;
-            }
-        }
-        return swapCount;
     }
 }
