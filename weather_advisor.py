@@ -2,6 +2,7 @@
 """Travel weather advisor — 7-day forecast with clothing advice, activity
 recommendations, and risk warnings (all in Chinese with Emoji)."""
 
+import json
 import random
 import sys
 from datetime import datetime, timedelta
@@ -254,8 +255,146 @@ def format_output(forecast):
     sys.stdout.write("\n".join(lines) + "\n")
 
 
+# ---------------------------------------------------------------------------
+# Web server
+# ---------------------------------------------------------------------------
+
+WEB_HTML = r"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌤️ 旅行气象顾问</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:24px;text-align:center}
+.header h1{font-size:1.8em;margin-bottom:4px}
+.header p{opacity:.85;font-size:.95em}
+.container{max-width:800px;margin:0 auto;padding:20px}
+.form-card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.form-group{flex:1;min-width:140px}
+.form-group label{display:block;font-weight:600;margin-bottom:4px;font-size:.9em;color:#555}
+.form-group select,.form-group input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:1em;transition:border-color .2s}
+.form-group select:focus,.form-group input:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
+.btn{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:1em;cursor:pointer;font-weight:600;transition:opacity .2s,transform .1s;white-space:nowrap}
+.btn:hover{opacity:.9;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.error{background:#fff3f3;color:#c0392b;padding:12px 16px;border-radius:8px;margin-bottom:20px;border:1px solid #f5c6cb;display:none}
+.result-card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px;display:none}
+.result-card h2{font-size:1.2em;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #667eea;color:#444}
+.day-row{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:12px;flex-wrap:wrap}
+.day-row:last-child{border-bottom:none}
+.day-label{font-weight:600;min-width:100px;color:#555}
+.day-detail{flex:1;color:#666}
+.spinner{display:none;text-align:center;padding:20px}
+.spinner::after{content:'';display:inline-block;width:32px;height:32px;border:3px solid #ddd;border-top-color:#667eea;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌤️ 旅行气象顾问</h1><p>7日天气预报 · 穿衣指南 · 活动推荐 · 风险提示</p></div>
+<div class="container">
+<div class="form-card">
+<div class="form-row">
+<div class="form-group"><label for="city">城市</label><select id="city"><option value="北京">北京</option><option value="上海">上海</option><option value="三亚">三亚</option></select></div>
+<div class="form-group"><label for="start">开始日期</label><input type="date" id="start" value="2025-06-01"></div>
+<div class="form-group"><label for="end">结束日期</label><input type="date" id="end" value="2025-06-07"></div>
+<button class="btn" onclick="fetchForecast()">🔍 查询</button>
+</div>
+</div>
+<div class="error" id="error"></div>
+<div class="spinner" id="spinner"></div>
+<div class="result-card" id="result"></div>
+</div>
+<script>
+async function fetchForecast(){
+ const city=document.getElementById('city').value;
+ const start=document.getElementById('start').value;
+ const end=document.getElementById('end').value;
+ const err=document.getElementById('error');
+ const res=document.getElementById('result');
+ const spin=document.getElementById('spinner');
+ err.style.display='none';res.style.display='none';spin.style.display='block';
+ try{
+  const r=await fetch('/forecast?city='+encodeURIComponent(city)+'&start='+encodeURIComponent(start)+'&end='+encodeURIComponent(end));
+  if(!r.ok){const t=await r.text();err.textContent=t;err.style.display='block';spin.style.display='none';return}
+  const html=await r.text();
+  res.innerHTML=html;res.style.display='block';spin.style.display='none';
+ }catch(e){err.textContent='网络错误，请稍后重试';err.style.display='block';spin.style.display='none'}
+}
+</script>
+</body>
+</html>"""
+
+
+def _forecast_to_html(forecast):
+    """Convert a forecast list to an HTML string."""
+    parts = []
+    city = forecast[0]["city"]
+    start_str = forecast[0]["date"].strftime("%Y-%m-%d")
+    end_str = forecast[-1]["date"].strftime("%Y-%m-%d")
+
+    parts.append(f'<h2>🌤️ {city} 7日天气预报</h2>')
+    parts.append(f'<p style="color:#888;margin-bottom:16px">📅 {start_str} ~ {end_str}</p>')
+
+    # Section 1: 每日天气摘要
+    parts.append('<h2>📋 每日天气摘要</h2>')
+    for day in forecast:
+        d = day["date"]
+        wd = WEEKDAY_NAMES[d.weekday()]
+        emoji = _weather_emoji(day["temp"], day["is_rainy"])
+        parts.append(
+            f'<div class="day-row"><span class="day-label">📆 {d.month}月{d.day}日 ({wd})</span>'
+            f'<span class="day-detail">{emoji} {day["temp"]}°C | 💧 {day["humidity"]}% | '
+            f'🌧️ {day["rain_prob"]}% | 💨 {day["wind"]}级</span></div>'
+        )
+
+    # Section 2: 穿衣指南
+    parts.append('<h2>👔 穿衣指南</h2>')
+    for day in forecast:
+        d = day["date"]
+        wd = WEEKDAY_NAMES[d.weekday()]
+        advice = _clothing_advice(day["temp"], day["is_rainy"])
+        parts.append(
+            f'<div class="day-row"><span class="day-label">📆 {d.month}月{d.day}日 ({wd})</span>'
+            f'<span class="day-detail">{advice}</span></div>'
+        )
+
+    # Section 3: 活动推荐
+    parts.append('<h2>🎯 活动推荐</h2>')
+    for day in forecast:
+        d = day["date"]
+        wd = WEEKDAY_NAMES[d.weekday()]
+        activity = _activity_recommendation(day["temp"], day["is_rainy"], day["wind"])
+        parts.append(
+            f'<div class="day-row"><span class="day-label">📆 {d.month}月{d.day}日 ({wd})</span>'
+            f'<span class="day-detail">{activity}</span></div>'
+        )
+
+    # Section 4: 风险提示
+    parts.append('<h2>⚠️ 风险提示</h2>')
+    for day in forecast:
+        d = day["date"]
+        wd = WEEKDAY_NAMES[d.weekday()]
+        warnings = _risk_warnings(
+            day["temp"], day["is_rainy"], day["wind"], day["rain_prob"], day["humidity"]
+        )
+        for w in warnings:
+            parts.append(
+                f'<div class="day-row"><span class="day-label">📆 {d.month}月{d.day}日 ({wd})</span>'
+                f'<span class="day-detail">{w}</span></div>'
+            )
+
+    return "\n".join(parts)
+
+
 def main():
     """Parse CLI args, validate, generate forecast, and print output."""
+    if len(sys.argv) == 2 and sys.argv[1] == "--web":
+        _run_web_server()
+        return
     if len(sys.argv) != 4:
         print("用法: python3 weather_advisor.py <城市> <开始日期> <结束日期>",
               file=sys.stderr)
@@ -291,6 +430,71 @@ def main():
 
     forecast = generate_forecast(city, start_date, end_date)
     format_output(forecast)
+
+
+def _run_web_server():
+    """Start a simple HTTP server with the weather advisor web UI."""
+    import urllib.parse
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path
+            params = urllib.parse.parse_qs(parsed.query)
+
+            if path == "/":
+                self._serve_html(WEB_HTML)
+            elif path == "/forecast":
+                self._handle_forecast(params)
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Not Found")
+
+        def _serve_html(self, html):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(html.encode("utf-8"))
+
+        def _handle_forecast(self, params):
+            try:
+                city = params.get("city", [None])[0]
+                start_str = params.get("start", [None])[0]
+                end_str = params.get("end", [None])[0]
+                if not city or not start_str or not end_str:
+                    raise ValueError("缺少参数")
+                if city not in CLIMATE_DATA:
+                    raise ValueError(
+                        f"未知城市 '{city}'。支持: {'、'.join(CLIMATE_DATA.keys())}"
+                    )
+                start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_str, "%Y-%m-%d").date()
+                if start_date > end_date:
+                    raise ValueError("开始日期不能晚于结束日期")
+                delta = (end_date - start_date).days + 1
+                if delta != 7:
+                    raise ValueError(f"日期范围必须为7天（当前{delta}天）")
+
+                forecast = generate_forecast(city, start_date, end_date)
+                html = _forecast_to_html(forecast)
+                self._serve_html(html)
+            except ValueError as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(str(e).encode("utf-8"))
+
+        def log_message(self, format, *args):
+            pass  # suppress logs
+
+    host = "127.0.0.1"
+    port = 8080
+    server = HTTPServer((host, port), Handler)
+    print(f"🌤️  旅行气象顾问 Web 服务已启动: http://{host}:{port}")
+    print("按 Ctrl+C 停止服务")
+    server.serve_forever()
 
 
 if __name__ == "__main__":
