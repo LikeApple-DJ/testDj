@@ -20,5 +20,16 @@
     "outputs": [
       ".agents/system.changes/dima.md"
     ]
-  }
+  },
+  "code_review": {
+    "phase": "代码评审",
+    "skill": "code-review-skill",
+    "status": "approved",
+    "report": ".agents/system.changes/cr_report.md",
+    "blocker_count": 0,
+    "important_count": 0,
+    "nit_count": 2,
+    "summary": "代码质量良好，通过所有验收标准。0 个阻塞问题，2 个 nit 建议（main() 缺少类型注解/docstring，无单元测试）。"
+  },
+  "blocker_count": 0
 }
