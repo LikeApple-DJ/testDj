@@ -67,8 +67,7 @@ def _daily_forecast(city, date):
     base = CLIMATE_DATA[city][month]
 
     # Deterministic seed for reproducibility
-    seed = hash(f"{city}-{date.isoformat()}") & 0xFFFFFFFF
-    rng = random.Random(seed)
+    rng = random.Random(f"{city}-{date.isoformat()}")
 
     temp_variation = rng.randint(-3, 3)
     humidity_variation = rng.randint(-5, 5)
