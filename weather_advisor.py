@@ -126,21 +126,25 @@ def _weather_emoji(temp, is_rainy):
     return "❄️"
 
 
-def _clothing_advice(temp):
-    """Return clothing recommendation based on temperature."""
+def _clothing_advice(temp, is_rainy):
+    """Return clothing recommendation based on temperature and rain."""
     if temp < -5:
-        return "羽绒服、厚毛衣、围巾、手套、棉帽 🧣"
-    if temp < 0:
-        return "羽绒服、厚毛衣、围巾手套 🧣"
-    if temp < 10:
-        return "厚外套、毛衣、保暖裤 🧥"
-    if temp < 18:
-        return "薄外套、长袖衬衫 👔"
-    if temp < 25:
-        return "长袖T恤、薄裤 👕"
-    if temp < 30:
-        return "短袖、短裤、裙子 👗"
-    return "短袖短裤、防晒衣、帽子 🧢"
+        advice = "羽绒服、厚毛衣、围巾、手套、棉帽 🧣"
+    elif temp < 0:
+        advice = "羽绒服、厚毛衣、围巾手套 🧣"
+    elif temp < 10:
+        advice = "厚外套、毛衣、保暖裤 🧥"
+    elif temp < 18:
+        advice = "薄外套、长袖衬衫 👔"
+    elif temp < 25:
+        advice = "长袖T恤、薄裤 👕"
+    elif temp < 30:
+        advice = "短袖、短裤、裙子 👗"
+    else:
+        advice = "短袖短裤、防晒衣、帽子 🧢"
+    if is_rainy:
+        advice += "；带雨伞或雨衣 🌂"
+    return advice
 
 
 def _activity_recommendation(temp, is_rainy, wind):
@@ -162,7 +166,7 @@ def _activity_recommendation(temp, is_rainy, wind):
     return "建议室内运动，如健身房、瑜伽 🧘"
 
 
-def _risk_warnings(temp, is_rainy, wind, rain_prob):
+def _risk_warnings(temp, is_rainy, wind, rain_prob, humidity):
     """Return a list of risk warning strings."""
     warnings = []
     if temp >= 35:
@@ -173,9 +177,9 @@ def _risk_warnings(temp, is_rainy, wind, rain_prob):
         warnings.append("🥶 极寒预警：注意防冻保暖")
     elif temp <= 0:
         warnings.append("⚠️ 气温较低，注意保暖")
-    if is_rainy and rain_prob >= 50:
+    if rain_prob >= 50:
         warnings.append("☔ 降雨概率较高，请携带雨具")
-    elif is_rainy:
+    elif rain_prob >= 30:
         warnings.append("🌂 可能有雨，建议携带雨具")
     if wind >= 5:
         warnings.append("💨 大风预警：注意防风")
@@ -220,7 +224,7 @@ def format_output(forecast):
     for day in forecast:
         d = day["date"]
         wd = WEEKDAY_NAMES[d.weekday()]
-        advice = _clothing_advice(day["temp"])
+        advice = _clothing_advice(day["temp"], day["is_rainy"])
         lines.append(f"📆 {d.month}月{d.day}日 ({wd}): {advice}")
     lines.append("")
 
@@ -243,12 +247,10 @@ def format_output(forecast):
         d = day["date"]
         wd = WEEKDAY_NAMES[d.weekday()]
         warnings = _risk_warnings(
-            day["temp"], day["is_rainy"], day["wind"], day["rain_prob"]
+            day["temp"], day["is_rainy"], day["wind"], day["rain_prob"], day["humidity"]
         )
         for w in warnings:
             lines.append(f"📆 {d.month}月{d.day}日 ({wd}): {w}")
-    lines.append("")
-
     sys.stdout.write("\n".join(lines) + "\n")
 
 
