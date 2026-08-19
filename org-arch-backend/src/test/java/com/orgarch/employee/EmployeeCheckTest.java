@@ -1,5 +1,6 @@
 package com.orgarch.employee;
 
+import com.orgarch.common.BizException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -55,8 +56,9 @@ class EmployeeCheckTest {
     }
 
     @Test
-    void check_unknownField_throws() {
-        assertThrows(IllegalArgumentException.class,
+    void check_unknownField_throws400() {
+        BizException ex = assertThrows(BizException.class,
                 () -> empService.check("xxx", "1"));
+        assertEquals(400, ex.getCode());
     }
 }

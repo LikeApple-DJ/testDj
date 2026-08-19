@@ -6,6 +6,7 @@ import com.orgarch.department.Department;
 import com.orgarch.department.DepartmentRepository;
 import com.orgarch.transfer.TransferRecord;
 import com.orgarch.transfer.TransferRecordRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,7 @@ class EmployeeTransferTest {
     @Autowired private DepartmentRepository deptRepo;
     @Autowired private ApprovalFlowNodeRepository flowRepo;
     @Autowired private TransferRecordRepository transferRepo;
+    @Autowired private EntityManager entityManager;
 
     private Long seedDept(String name) {
         Department d = deptRepo.save(new Department(name, null));
@@ -82,24 +84,25 @@ class EmployeeTransferTest {
         Long toDept = seedDept("后端组");
         Long empId = seedEmployee(fromDept, "10087", "13800138001");
 
-        Employee managed = empRepo.findById(empId).orElseThrow();
-        Integer v1 = managed.getVersion();
+        // 先加载到持久化上下文（PC 持有 version=0）
+        empRepo.findById(empId).orElseThrow();
 
-        // 模拟另一线程已先提交：手动改写版本号制造冲突
-        managed.setVersion(v1 + 1); // 通过显式改写触发 save 后的版本比对冲突
-        empRepo.saveAndFlush(managed);
+        // 模拟另一线程已先提交：绕过 PC 直接递增 DB 版本号
+        entityManager.createNativeQuery(
+                        "UPDATE employee SET version = version + 1 WHERE id = :id")
+                .setParameter("id", empId)
+                .executeUpdate();
 
-        // 用旧版本号上下文再次发起调动
-        Employee stale = empRepo.findById(empId).orElseThrow();
-        // 还原版本号到旧值以模拟客户端持有的旧版本
-        stale.setVersion(v1);
-
+        // PC 仍持有旧版本号(version=0)，调动后强制 flush 触发乐观锁冲突
         TransferRequest req = new TransferRequest();
         req.setNewDeptId(toDept);
         req.setNewPosition("Java开发");
         req.setReason("业务调整");
 
         assertThrows(ObjectOptimisticLockingFailureException.class,
-                () -> empService.transferWithVersion(empId, req, v1));
+                () -> {
+                    empService.transfer(empId, req);
+                    empRepo.flush();
+                });
     }
 }

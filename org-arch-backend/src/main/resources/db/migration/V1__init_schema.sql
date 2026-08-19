@@ -4,6 +4,7 @@ CREATE TABLE department (
     parent_id   BIGINT       NULL,
     path        VARCHAR(512) NOT NULL DEFAULT '/',
     sort_order  INT          NOT NULL DEFAULT 0,
+    leader_id   BIGINT       NULL,
     is_deleted  TINYINT      NOT NULL DEFAULT 0,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -27,8 +28,8 @@ CREATE TABLE employee (
     created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_emp_no (employee_no),
-    UNIQUE KEY uk_emp_phone (phone),
+    UNIQUE KEY uk_emp_no (employee_no, is_deleted),
+    UNIQUE KEY uk_emp_phone (phone, is_deleted),
     KEY idx_emp_dept (dept_id),
     KEY idx_emp_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -55,5 +56,6 @@ CREATE TABLE approval_flow_node (
     scene         VARCHAR(32)  NOT NULL DEFAULT 'LEAVE',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_flow_emp (employee_id)
+    KEY idx_flow_emp (employee_id),
+    KEY idx_flow_approver (approver_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
