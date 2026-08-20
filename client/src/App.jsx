@@ -47,7 +47,17 @@ export default function App() {
   }
 
   async function handleSort() {
-    const arr = arrayText.split(',').map((s) => Number(s.trim()));
+    const arr = arrayText
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '')
+      .map((s) => Number(s));
+
+    if (arr.length === 0 || arr.some((n) => !Number.isInteger(n))) {
+      setError('请输入逗号分隔的整数，例如：5,3,8,1,2');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {

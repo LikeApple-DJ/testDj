@@ -3,6 +3,7 @@ import crypto from 'crypto';
 
 const router = Router();
 const SUPPORTED = ['MD5', 'SHA-256'];
+const MAX_TEXT_LENGTH = 1024 * 1024; // 1 MB
 
 router.post('/', (req, res) => {
   const { text = '', algorithm = 'SHA-256' } = req.body || {};
@@ -11,6 +12,14 @@ router.post('/', (req, res) => {
     return res.status(400).json({
       code: 'DEMO_002',
       message: 'text is required and must be a non-empty string',
+      data: null
+    });
+  }
+
+  if (text.length > MAX_TEXT_LENGTH) {
+    return res.status(400).json({
+      code: 'DEMO_009',
+      message: `text length exceeds maximum of ${MAX_TEXT_LENGTH} characters`,
       data: null
     });
   }

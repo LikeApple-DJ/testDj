@@ -4,6 +4,10 @@ const router = Router();
 const SUPPORTED_TYPES = ['helloworld', 'hash', 'bubble-sort'];
 const SUPPORTED_FORMATS = ['txt', 'json'];
 
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 router.post('/', (req, res) => {
   const { type = 'helloworld', data = {}, format = 'txt' } = req.body || {};
 
@@ -19,6 +23,14 @@ router.post('/', (req, res) => {
     return res.status(400).json({
       code: 'DEMO_007',
       message: 'Unsupported export format. Use one of: txt, json',
+      data: null
+    });
+  }
+
+  if (!isPlainObject(data)) {
+    return res.status(400).json({
+      code: 'DEMO_008',
+      message: 'data must be a plain object',
       data: null
     });
   }
