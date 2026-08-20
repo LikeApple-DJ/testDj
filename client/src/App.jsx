@@ -10,6 +10,7 @@ const TABS = [
 export default function App() {
   const [active, setActive] = useState('helloworld');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const [helloName, setHelloName] = useState('World');
   const [helloResult, setHelloResult] = useState(null);
@@ -23,23 +24,38 @@ export default function App() {
 
   async function handleHello() {
     setLoading(true);
-    const res = await helloWorld(helloName);
-    setHelloResult(res.data);
+    setError(null);
+    try {
+      const res = await helloWorld(helloName);
+      setHelloResult(res.data);
+    } catch (err) {
+      setError(err.message);
+    }
     setLoading(false);
   }
 
   async function handleHash() {
     setLoading(true);
-    const res = await hash(hashText, hashAlgorithm);
-    setHashResult(res.data);
+    setError(null);
+    try {
+      const res = await hash(hashText, hashAlgorithm);
+      setHashResult(res.data);
+    } catch (err) {
+      setError(err.message);
+    }
     setLoading(false);
   }
 
   async function handleSort() {
     const arr = arrayText.split(',').map((s) => Number(s.trim()));
     setLoading(true);
-    const res = await bubbleSort(arr);
-    setSortResult(res.data);
+    setError(null);
+    try {
+      const res = await bubbleSort(arr);
+      setSortResult(res.data);
+    } catch (err) {
+      setError(err.message);
+    }
     setLoading(false);
   }
 
@@ -52,16 +68,25 @@ export default function App() {
   async function handleExport(format = 'txt') {
     const data = currentResult();
     if (!data) return;
-    const res = await downloadExport(active, data, format);
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `result-${active}.${format === 'json' ? 'json' : 'txt'}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    setError(null);
+    try {
+      const res = await downloadExport(active, data, format);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `result-${active}.${format === 'json' ? 'json' : 'txt'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
@@ -72,12 +97,14 @@ export default function App() {
           <button
             key={tab.key}
             className={`tab ${active === tab.key ? 'active' : ''}`}
-            onClick={() => setActive(tab.key)}
+            onClick={() => { setActive(tab.key); setError(null); }}
           >
             {tab.label}
           </button>
         ))}
       </div>
+
+      {error && <div className="error">{error}</div>}
 
       {active === 'helloworld' && (
         <div className="section">

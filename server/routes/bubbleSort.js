@@ -19,10 +19,18 @@ function bubbleSort(arr) {
 router.post('/', (req, res) => {
   const { array = [] } = req.body || {};
 
-  if (!Array.isArray(array) || !array.every((n) => typeof n === 'number')) {
+  if (!Array.isArray(array) || array.length === 0) {
     return res.status(400).json({
-      code: 400,
-      message: 'array must be an array of numbers',
+      code: 'DEMO_004',
+      message: 'array must be a non-empty array',
+      data: null
+    });
+  }
+
+  if (!array.every((n) => Number.isInteger(n))) {
+    return res.status(400).json({
+      code: 'DEMO_005',
+      message: 'array elements must be integers',
       data: null
     });
   }

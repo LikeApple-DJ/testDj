@@ -1,14 +1,24 @@
 import { Router } from 'express';
 
 const router = Router();
+const SUPPORTED_TYPES = ['helloworld', 'hash', 'bubble-sort'];
+const SUPPORTED_FORMATS = ['txt', 'json'];
 
 router.post('/', (req, res) => {
   const { type = 'helloworld', data = {}, format = 'txt' } = req.body || {};
 
-  if (!['helloworld', 'hash', 'bubble-sort'].includes(type)) {
+  if (!SUPPORTED_TYPES.includes(type)) {
     return res.status(400).json({
-      code: 400,
+      code: 'DEMO_006',
       message: 'Unsupported export type',
+      data: null
+    });
+  }
+
+  if (!SUPPORTED_FORMATS.includes(format)) {
+    return res.status(400).json({
+      code: 'DEMO_007',
+      message: 'Unsupported export format. Use one of: txt, json',
       data: null
     });
   }
