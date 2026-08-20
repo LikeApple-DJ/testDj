@@ -1,11 +1,12 @@
 {
-  "blocker_count": 5,
+  "blocker_count": 6,
   "p0_blockers": [
     "F04-01: triggerJob() 方法未实现，手动触发功能完全不可用",
     "G04-01: 缺少任务执行超时控制机制",
     "G05-01: MQ 消费者未实现幂等消费",
     "G16-01: JobServiceImpl.java:110 空catch块吞异常",
-    "G16-02: 多处catch块缺少异常堆栈参数（DynamicScheduler:44,54 / QuartzConfig:45 / JobHandlerExecutor:44）"
+    "G16-02: 多处catch块缺少异常堆栈参数（DynamicScheduler:44,54 / QuartzConfig:45 / JobHandlerExecutor:44）",
+    "B006-01: SchedulerMQConsumer.java:15 引用不存在的内部类 SchedulerMQProducer.JobCallbackMessage，编译错误"
   ],
   "p1_count": 12,
   "p2_count": 9,

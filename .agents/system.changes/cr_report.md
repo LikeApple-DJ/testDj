@@ -77,9 +77,9 @@
 | # | 等级 | 规则 | 文件 | 行号 | 说明 |
 |---|------|------|------|------|------|
 | S01 | P0 | G16.2 | `JobHandlerExecutor.java` | 44 | catch块仅log.error，但未记录完整异常堆栈 |
-| S02 | P0 | G16.2 | `QuartzConfig.java` | 45 | catch IOException 使用 RuntimeException 包装，未log原始异常详情 |
-| S03 | P0 | G16.2 | `DynamicScheduler.java` | 44 | catch SchedulerException 仅log.error，缺少异常堆栈 |
-| S04 | P0 | G16.2 | `DynamicScheduler.java` | 54 | catch SchedulerException 仅log.error，缺少异常堆栈 |
+| S02 | P0 | G16.2 | `QuartzConfig.java` | 45 | catch IOException 使用 RuntimeException 包装，原始异常已通过 cause 参数保留（`throw new RuntimeException(msg, e)`），非误报 |
+| S03 | P0 | G16.2 | `DynamicScheduler.java` | 44 | catch SchedulerException 已传递异常对象作为参数（`log.error("...", e)`），SLF4J 会打印完整堆栈。⚠️ 疑似误报，需确认 |
+| S04 | P0 | G16.2 | `DynamicScheduler.java` | 54 | catch SchedulerException 已传递异常对象作为参数（`log.error("...", e)`），SLF4J 会打印完整堆栈。⚠️ 疑似误报，需确认 |
 | S05 | P0 | G16.2 | `JobServiceImpl.java` | 110 | catch NumberFormatException 为空，完全忽略 |
 | S06 | P1 | M007 | `JobServiceImpl.java` | 110 | 空catch块（吞异常） |
 | S07 | P1 | M016 | `ExecutorMQProducer.java` | 21 | LocalDateTime.now() 使用默认时区，应显式指定时区 |
@@ -243,6 +243,7 @@
 | B003 — 事务未处理异常 | P1 | `JobServiceImpl.java:33` | `@Transactional` 默认只回滚 RuntimeException，需确认是否要捕获 checked exception |
 | B004 — 静态注入 Spring Bean | P1 | `ApplicationContextProvider.java:11` | 静态字段持有 ApplicationContext，单元测试时不易 mock |
 | B005 — 消息体未序列化配置 | P1 | `SchedulerMQProducer.java:34` | 使用 `MessageBuilder.withPayload(message)` 但未明确配置 JSON 序列化器，可能导致 RocketMQ 序列化异常 |
+| **B006 — 编译错误: 引用不存在内部类** | **P0** | **`SchedulerMQConsumer.java:15`** | `implements RocketMQListener<SchedulerMQProducer.JobCallbackMessage>` 引用了 `SchedulerMQProducer.JobCallbackMessage`，但 `SchedulerMQProducer` 中仅定义了 `JobDispatchMessage`，`JobCallbackMessage` 实际定义在 `SchedulerMQConsumer` 自身。**会导致编译失败** |
 
 ---
 
@@ -286,6 +287,7 @@ MQ 消息契约基本对齐，但 `status` 字段类型不一致（`Integer` vs 
 - [ ] **G05-01**: 实现 MQ 消费者幂等消费（如基于 traceId 去重）
 - [ ] **G16-01**: 修复 `JobServiceImpl.java:110` 空 catch 块，至少记录日志
 - [ ] **G16-02**: 修复 `DynamicScheduler.java:44,54` 和 `QuartzConfig.java:45` 和 `JobHandlerExecutor.java:44` catch 缺少异常堆栈参数
+- [ ] **B006-01**: 修复 `SchedulerMQConsumer.java:15` 编译错误 — 引用 `SchedulerMQProducer.JobCallbackMessage` 应改为 `SchedulerMQConsumer.JobCallbackMessage`（或直接使用 `JobCallbackMessage`）
 
 ### P1 — 推荐项（合并前应修复）
 
@@ -315,7 +317,7 @@ MQ 消息契约基本对齐，但 `status` 字段类型不一致（`Integer` vs 
 
 ### 总体评价
 
-本次审查覆盖了 32 个 Java 文件，发现 **5 个 P0 阻塞问题**（手动触发功能未实现、缺少超时控制、缺少幂等消费、空catch块、catch缺少异常堆栈），**12 个 P1 推荐问题**，**9 个 P2 参考问题**。
+本次审查覆盖了 32 个 Java 文件，发现 **6 个 P0 阻塞问题**（手动触发功能未实现、缺少超时控制、缺少幂等消费、空catch块、catch缺少异常堆栈、**SchedulerMQConsumer 编译错误**），**12 个 P1 推荐问题**，**9 个 P2 参考问题**。
 
 ### 核心风险
 
@@ -324,6 +326,7 @@ MQ 消息契约基本对齐，但 `status` 字段类型不一致（`Integer` vs 
 3. **F05 暂停/恢复未同步调度器** — 状态更新与调度器不同步
 4. **缺乏超时控制和幂等设计** — 对分布式系统可靠性有较大影响
 5. **跨仓 status 字段类型不一致** — Integer vs int 的序列化兼容性风险
+6. **B006 编译错误: SchedulerMQConsumer 引用了不存在的内部类** — 直接导致构建失败
 
 ### 整体结论
 
