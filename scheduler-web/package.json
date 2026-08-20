@@ -1,0 +1,18 @@
+{
+  "name": "scheduler-web",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0",
+    "axios": "^1.6.0",
+    "element-plus": "^2.5.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@vitejs/plugin-vue": "^5.0.0"
+  }
+}

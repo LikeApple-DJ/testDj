@@ -1,0 +1,49 @@
+package com.example.scheduler.config;
+
+import org.quartz.Scheduler;
+import org.quartz.spi.JobFactory;
+import org.springframework.beans.factory.config.PropertiesFactoryBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.util.Properties;
+
+@Configuration
+public class QuartzConfig {
+
+    private final DataSource dataSource;
+
+    public QuartzConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public SchedulerFactoryBean schedulerFactoryBean(JobFactory jobFactory) {
+        SchedulerFactoryBean factory = new SchedulerFactoryBean();
+        factory.setDataSource(dataSource);
+        factory.setJobFactory(jobFactory);
+        factory.setQuartzProperties(quartzProperties());
+        return factory;
+    }
+
+    @Bean
+    public Scheduler scheduler(SchedulerFactoryBean schedulerFactoryBean) {
+        return schedulerFactoryBean.getScheduler();
+    }
+
+    private Properties quartzProperties() {
+        try {
+            PropertiesFactoryBean propertiesFactoryBean = new PropertiesFactoryBean();
+            propertiesFactoryBean.setLocation(new ClassPathResource("/quartz.properties"));
+            propertiesFactoryBean.afterPropertiesSet();
+            return propertiesFactoryBean.getObject();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load quartz properties", e);
+        }
+    }
+}

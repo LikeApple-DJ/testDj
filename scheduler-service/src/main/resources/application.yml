@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: scheduler-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/scheduler?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: localhost
+    port: 6379
+
+xxl:
+  job:
+    admin:
+      addresses: http://localhost:8080/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: scheduler-executor
+      port: 9999
+      logpath: /data/xxl-job/jobhandler
+      logretentiondays: 30
+
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: scheduler-producer
