@@ -35,6 +35,9 @@ public class HashController {
         } catch (ClassCastException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Invalid input format", "status", 400));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage(), "status", 400));
         }
     }
 }
