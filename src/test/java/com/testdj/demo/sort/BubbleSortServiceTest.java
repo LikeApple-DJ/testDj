@@ -1,11 +1,14 @@
 package com.testdj.demo.sort;
 
+import com.testdj.demo.common.ErrorCode;
 import com.testdj.demo.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BubbleSortServiceTest {
 
@@ -37,7 +40,7 @@ class BubbleSortServiceTest {
     void shouldThrowWhenNumbersIsNull() {
         SortRequest request = new SortRequest(null, true, false);
         BusinessException ex = assertThrows(BusinessException.class, () -> bubbleSortService.sort(request));
-        assertEquals(400, ex.getCode());
+        assertEquals(ErrorCode.SORT_NUMBERS_EMPTY, ex.getCode());
         assertTrue(ex.getMessage().contains("numbers must not be empty"));
     }
 
@@ -45,7 +48,7 @@ class BubbleSortServiceTest {
     void shouldThrowWhenNumbersIsEmpty() {
         SortRequest request = new SortRequest(List.of(), true, false);
         BusinessException ex = assertThrows(BusinessException.class, () -> bubbleSortService.sort(request));
-        assertEquals(400, ex.getCode());
+        assertEquals(ErrorCode.SORT_NUMBERS_EMPTY, ex.getCode());
         assertTrue(ex.getMessage().contains("numbers must not be empty"));
     }
 }

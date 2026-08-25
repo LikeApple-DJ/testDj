@@ -20,7 +20,7 @@ public class ExportController {
 
     @PostMapping("/export")
     public void export(@RequestBody ExportRequest request, HttpServletResponse response) throws Exception {
-        byte[] data = exportService.export(request.tab(), request.format());
+        byte[] data = exportService.export(request);
         String extension = request.format().equalsIgnoreCase("excel") ? "xlsx" : "csv";
         response.setContentType("application/octet-stream");
         response.setHeader("Content-Disposition", "attachment; filename=\"demo-export." + extension + "\"");

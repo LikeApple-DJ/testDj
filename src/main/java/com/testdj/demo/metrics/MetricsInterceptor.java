@@ -11,6 +11,10 @@ import java.util.UUID;
 @Component
 public class MetricsInterceptor implements HandlerInterceptor {
 
+    private static final String HELLO_PATH = "/api/v1/demo/hello";
+    private static final String HASH_PATH = "/api/v1/demo/hash";
+    private static final String SORT_BUBBLE_PATH = "/api/v1/demo/sort/bubble";
+
     private final MetricService metricService;
 
     public MetricsInterceptor(MetricService metricService) {
@@ -20,7 +24,7 @@ public class MetricsInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String uri = request.getRequestURI();
-        if (uri.startsWith("/api/v1/demo/hello") || uri.startsWith("/api/v1/demo/hash") || uri.startsWith("/api/v1/demo/sort/bubble")) {
+        if (isTrackedUri(uri)) {
             MetricEvent event = new MetricEvent(
                     UUID.randomUUID().toString(),
                     extractUserId(request),
@@ -32,6 +36,12 @@ public class MetricsInterceptor implements HandlerInterceptor {
             metricService.track(event);
         }
         return true;
+    }
+
+    private boolean isTrackedUri(String uri) {
+        return uri.startsWith(HELLO_PATH)
+                || uri.startsWith(HASH_PATH)
+                || uri.startsWith(SORT_BUBBLE_PATH);
     }
 
     private String extractUserId(HttpServletRequest request) {

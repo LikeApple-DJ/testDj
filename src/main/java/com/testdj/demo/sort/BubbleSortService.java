@@ -1,5 +1,6 @@
 package com.testdj.demo.sort;
 
+import com.testdj.demo.common.ErrorCode;
 import com.testdj.demo.exception.BusinessException;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +13,7 @@ public class BubbleSortService {
 
     public SortResponse sort(SortRequest request) {
         if (request.numbers() == null || request.numbers().isEmpty()) {
-            throw new BusinessException(400, "numbers must not be empty");
+            throw new BusinessException(ErrorCode.SORT_NUMBERS_EMPTY, ErrorCode.SORT_NUMBERS_EMPTY_MSG);
         }
         List<Integer> input = new ArrayList<>(request.numbers());
         List<Integer> output = new ArrayList<>(input);

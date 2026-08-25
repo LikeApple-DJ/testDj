@@ -1,9 +1,12 @@
 package com.testdj.demo.hash;
 
+import com.testdj.demo.common.ErrorCode;
 import com.testdj.demo.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HashServiceTest {
 
@@ -30,7 +33,7 @@ class HashServiceTest {
     void shouldThrowWhenContentIsEmpty() {
         HashRequest request = new HashRequest("SHA-256", "");
         BusinessException ex = assertThrows(BusinessException.class, () -> hashService.hash(request));
-        assertEquals(400, ex.getCode());
+        assertEquals(ErrorCode.HASH_CONTENT_EMPTY, ex.getCode());
         assertTrue(ex.getMessage().contains("content must not be empty"));
     }
 
@@ -38,7 +41,7 @@ class HashServiceTest {
     void shouldThrowWhenContentIsNull() {
         HashRequest request = new HashRequest("SHA-256", null);
         BusinessException ex = assertThrows(BusinessException.class, () -> hashService.hash(request));
-        assertEquals(400, ex.getCode());
+        assertEquals(ErrorCode.HASH_CONTENT_EMPTY, ex.getCode());
         assertTrue(ex.getMessage().contains("content must not be empty"));
     }
 
@@ -46,7 +49,7 @@ class HashServiceTest {
     void shouldThrowWhenAlgorithmUnsupported() {
         HashRequest request = new HashRequest("SM3", "hello");
         BusinessException ex = assertThrows(BusinessException.class, () -> hashService.hash(request));
-        assertEquals(400, ex.getCode());
+        assertEquals(ErrorCode.HASH_UNSUPPORTED_ALGORITHM, ex.getCode());
         assertTrue(ex.getMessage().contains("unsupported algorithm"));
     }
 }

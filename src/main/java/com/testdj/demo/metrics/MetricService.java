@@ -1,5 +1,6 @@
 package com.testdj.demo.metrics;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -14,8 +15,9 @@ public class MetricService {
         this.metricRepository = metricRepository;
     }
 
-    public MetricEvent track(MetricEvent event) {
-        return metricRepository.save(event);
+    @Async("metricsExecutor")
+    public void track(MetricEvent event) {
+        metricRepository.save(event);
     }
 
     public List<ReportItem> report(Dimension dimension, Instant start, Instant end) {
