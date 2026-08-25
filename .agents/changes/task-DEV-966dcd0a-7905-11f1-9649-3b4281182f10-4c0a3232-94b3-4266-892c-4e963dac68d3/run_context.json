@@ -1,7 +1,8 @@
 {
-  "step": "loop-1",
-  "node": "需求澄清",
-  "status": "clarified",
+  "step": "loop-2",
+  "node": "代码评审",
+  "status": "reviewed",
+  "blocker_count": 3,
   "tech_stack": {
     "backend": "Java Spring Boot 3.x + Spring Data JPA + H2 + Token 认证",
     "frontend": "Vue 3 + Vite + Element Plus + ECharts + Vue Router + Pinia"
