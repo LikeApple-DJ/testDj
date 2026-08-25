@@ -3,7 +3,7 @@
   "phase": "loop-2",
   "skill": "code-review",
   "status": "completed",
-  "blocker_count": 3,
+  "blocker_count": 0,
   "decisions": [
     {
       "item": "技术栈",
@@ -48,18 +48,22 @@
     ".agents/system.changes/cr_report.md"
   ],
   "cr_findings": {
-    "blocker_count": 3,
-    "major_count": 4,
-    "minor_count": 4,
-    "blockers": [
-      "B1: 双重埋点 — TrackingInterceptor 自动拦截 + 前端手动调用 postTrack()，导致统计数据重复",
-      "B2: ExportButton.vue — ElMessage 在 <script setup> 中未定义",
-      "B3: UserInfo.vue — ElMessage 在 <script setup> 中未定义"
+    "blocker_count": 0,
+    "major_count": 3,
+    "minor_count": 2,
+    "blockers": [],
+    "medium": [
+      "M1: CORS 配置过于宽松 — addAllowedOriginPattern(\"*\") 应指定具体来源",
+      "M2: 导出接口错误响应 Content-Type 非 JSON — 前端 responseType: 'blob' 无法解析 JSON 错误",
+      "M3: 前端 postTrack 函数死代码残留 — 未被任何组件引用，建议清理"
+    ],
+    "nit": [
+      "N1: StatisticsService 空数据返回空列表，前端已有 catch 处理",
+      "N2: HashService 中 NoSuchAlgorithmException 包装为 RuntimeException"
     ]
   },
   "next_steps": [
-    "修复 3 个 Blocker 问题后重新验证",
-    "建议修复 4 个 Major 问题",
+    "建议修复 3 个 Medium 级别问题",
     "回归测试跨仓接口联调"
   ]
 }
