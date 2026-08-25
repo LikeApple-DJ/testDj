@@ -3,27 +3,37 @@
   "node": "需求澄清",
   "status": "clarified",
   "tech_stack": {
-    "backend": "Java Spring Boot 3.x + Spring Data JPA + H2",
-    "frontend": "Vue 3 + Vite + Element Plus + ECharts"
+    "backend": "Java Spring Boot 3.x + Spring Data JPA + H2 + Token 认证",
+    "frontend": "Vue 3 + Vite + Element Plus + ECharts + Vue Router + Pinia"
   },
   "repo_assignment": {
-    "testDj-main": "后端服务 (Spring Boot)",
-    "testDJnew-main": "前端应用 (Vue.js)"
+    "testDj-main": "后端服务 (Spring Boot + Auth + PersonService + 埋点)",
+    "testDJnew-main": "前端应用 (Vue.js + Login + 看板)"
   },
   "clarified_items": [
     "技术栈：Java Spring Boot (后端) + Vue.js Element UI (前端)",
-    "仓库分配：testDj-main → 后端, testDJnew-main → 前端（推断）",
-    "三个后端接口：HelloWorld / SHA-256 哈希 / 冒泡排序",
-    "导出功能：GET /api/export 接口，格式暂定 CSV",
-    "埋点模型含 callerId/type/level/dept 维度",
-    "统计看板：折线图/饼图/柱状图",
-    "数据存储：H2 内存数据库，埋点数据模拟生成"
+    "仓库分配：testDj-main → 后端, testDJnew-main → 前端",
+    "三个后端接口：HelloWorld / 哈希算法(多算法可切换) / 冒泡排序",
+    "哈希算法：前端可切换 SHA-256 / MD5 等，后端通过 algorithm 参数支持",
+    "导出功能：GET /api/export?tab=xxx 接口，格式 CSV",
+    "埋点模型含 callerId/type/level/dept 维度，数据来自登录认证 + 对接真实系统",
+    "人员维度：PersonService 模拟对接外部系统，根据 callerId 返回 type/level/dept",
+    "登录认证：需要，POST /api/auth/login 返回 Token，后续请求 Bearer 头传递",
+    "统计看板：折线图(时间趋势) / 饼图(人员类型/部门) / 柱状图(人员层级)",
+    "数据存储：H2 内存数据库，初始用户数据通过 data.sql 初始化"
   ],
-  "pending_items": [
-    "哈希算法具体类型（暂定 SHA-256）",
-    "导出格式确认（暂定 CSV）",
-    "人员维度数据来源（模拟/真实）",
-    "是否需要登录认证获取调用人"
+  "clarification_process": [
+    "【第1轮】向用户提出4个待确认项，用户选择退出",
+    "【第2轮】用户主动返回答案：①哈希算法→前端可切换 ②导出格式→CSV ③人员数据→对接真实系统 ④登录认证→需要",
+    "【更新dima.md】已确认决策反映到需求文档中",
+    "【更新plan.md】新增 AuthController/AuthService/AuthInterceptor/PersonService 等组件，调整前端增加 Login.vue/Router/Store"
   ],
-  "recommended_approach": "方案A：Spring Boot 单体 + Vue SPA + H2 内存库 + ECharts"
+  "confirmed_decisions": {
+    "hash_algorithm": "多算法可切换（SHA-256 / MD5 等）",
+    "export_format": "CSV",
+    "person_data_source": "对接真实系统（PersonService 模拟）",
+    "login_required": true,
+    "auth_method": "Token 认证（Bearer header）"
+  },
+  "recommended_approach": "方案A：Spring Boot 单体 + Vue SPA + H2 内存库 + Token 认证 + PersonService 模拟外部系统 + ECharts"
 }
