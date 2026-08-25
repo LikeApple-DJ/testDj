@@ -1,6 +1,7 @@
 package com.example.demo.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 @Entity
 @Table(name = "tracking_records")
 public class TrackingRecord {
@@ -13,7 +14,7 @@ public class TrackingRecord {
     @Column(name = "params_json", columnDefinition = "TEXT")
     private String paramsJson;
     @Column(name = "call_time")
-    private LocalDateTime callTime = LocalDateTime.now();
+    private LocalDateTime callTime = LocalDateTime.now(ZoneOffset.UTC);
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
     public TrackingRecord() {}

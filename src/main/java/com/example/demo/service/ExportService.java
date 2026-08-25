@@ -6,10 +6,16 @@ import com.example.demo.repository.UserRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 @Service
 public class ExportService {
+    private static final Logger log = LoggerFactory.getLogger(ExportService.class);
     private final TrackingRecordRepository trackingRepo;
     private final UserRepository userRepository;
     public ExportService(TrackingRecordRepository trackingRepo, UserRepository userRepository) {
@@ -32,9 +38,12 @@ public class ExportService {
                 cell.setCellStyle(headerStyle);
             }
             int rowNum = 1;
+            Set<Long> userIds = records.stream().map(TrackingRecord::getUserId).collect(Collectors.toSet());
+            Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
+                    .collect(Collectors.toMap(User::getId, u -> u));
             for (TrackingRecord record : records) {
                 Row row = sheet.createRow(rowNum++);
-                User user = userRepository.findById(record.getUserId()).orElse(null);
+                User user = userMap.get(record.getUserId());
                 row.createCell(0).setCellValue(user != null ? user.getUsername() : "N/A");
                 row.createCell(1).setCellValue(user != null ? user.getPersonType() : "");
                 row.createCell(2).setCellValue(user != null ? user.getPersonLevel() : "");
@@ -51,6 +60,7 @@ public class ExportService {
             workbook.write(baos);
             return baos.toByteArray();
         } catch (Exception e) {
+            log.error("Excel generation failed for apiName: {}", apiName, e);
             throw new RuntimeException("Excel generation failed", e);
         }
     }

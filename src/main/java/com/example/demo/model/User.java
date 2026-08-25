@@ -1,6 +1,7 @@
 package com.example.demo.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 @Entity
 @Table(name = "users")
 public class User {
@@ -17,7 +18,7 @@ public class User {
     @Column(name = "person_dept", length = 100)
     private String personDept;
     @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
     public User() {}
     public User(String username, String password, String personType, String personLevel, String personDept) {
         this.username = username; this.password = password;

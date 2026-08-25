@@ -14,10 +14,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
 @Aspect
 @Component
 public class TrackingAspect {
     private static final Logger log = LoggerFactory.getLogger(TrackingAspect.class);
+    private static final Map<String, String> CONTROLLER_API_MAP = Map.of(
+            "HelloWorldController", "helloworld",
+            "HashController", "hash",
+            "BubbleSortController", "bubblesort"
+    );
     private final TrackingRecordRepository trackingRepo;
     private final ObjectMapper objectMapper;
     public TrackingAspect(TrackingRecordRepository trackingRepo, ObjectMapper objectMapper) {
@@ -31,7 +38,8 @@ public class TrackingAspect {
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof Long userId) {
-                String apiName = joinPoint.getSignature().getName();
+                String controllerName = joinPoint.getTarget().getClass().getSimpleName();
+                String apiName = CONTROLLER_API_MAP.getOrDefault(controllerName, joinPoint.getSignature().getName());
                 MethodSignature signature = (MethodSignature) joinPoint.getSignature();
                 String[] paramNames = signature.getParameterNames();
                 Object[] args = joinPoint.getArgs();
@@ -57,7 +65,7 @@ public class TrackingAspect {
                     }
                 } catch (Exception e) { log.warn("Failed to get IP", e); }
                 TrackingRecord record = new TrackingRecord(userId, apiName, paramsJson, ipAddress);
-                record.setCallTime(LocalDateTime.now());
+                record.setCallTime(LocalDateTime.now(ZoneOffset.UTC));
                 trackingRepo.save(record);
             }
         } catch (Exception e) {

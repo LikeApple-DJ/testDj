@@ -3,6 +3,7 @@ import com.example.demo.model.TrackingRecord;
 import com.example.demo.model.User;
 import com.example.demo.repository.TrackingRecordRepository;
 import com.example.demo.repository.UserRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -14,8 +15,10 @@ public class TrackingService {
         this.trackingRepo = trackingRepo;
         this.userRepository = userRepository;
     }
+    private static final int MAX_REPORT_RECORDS = 1000;
+
     public List<Map<String, Object>> getReport(String dimension) {
-        List<TrackingRecord> records = trackingRepo.findAll();
+        List<TrackingRecord> records = trackingRepo.findAll(PageRequest.of(0, MAX_REPORT_RECORDS)).getContent();
         Map<Long, User> userMap = userRepository.findAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
         Map<String, List<TrackingRecord>> grouped = new LinkedHashMap<>();
