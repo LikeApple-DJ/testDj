@@ -16,7 +16,7 @@
     },
     {
       "item": "前端框架",
-      "decision": "Vue3",
+      "decision": "Vue3 + Element Plus + ECharts",
       "source": "用户确认"
     },
     {
@@ -28,6 +28,18 @@
       "item": "导出格式",
       "decision": "CSV",
       "source": "用户确认"
+    },
+    {
+      "item": "调用人识别",
+      "decision": "前端用户名输入框，用户进入页面时输入姓名/部门/层级/人员类型，全局状态存储",
+      "source": "模型推荐，用户采纳"
+    }
+  ],
+  "clarifications": [
+    {
+      "question": "如何确定调用人身份？",
+      "answer": "前端页面顶部加用户名输入框，用户输入姓名、部门、层级、人员类型，通过 Pinia store 全局管理，每次 API 调用自动携带",
+      "source": "模型推荐方案一，用户确认"
     }
   ],
   "outputs": [
@@ -36,6 +48,6 @@
   "next_steps": [
     "进入实现阶段：在 testDj 仓库搭建 Spring Boot 后端",
     "在 ranxitest 仓库搭建 Vue3 前端",
-    "实现三个接口及埋点、导出、统计功能"
+    "实现三个接口（hello/hash/bubble-sort）及埋点、导出、统计功能"
   ]
 }
