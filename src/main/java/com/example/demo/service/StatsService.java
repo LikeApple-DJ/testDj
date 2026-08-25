@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
@@ -14,8 +15,22 @@ public class StatsService {
     private CallRecordRepository callRecordRepository;
 
     public Map<String, Object> getStatsByDimension(String dimension, String start, String end) {
-        LocalDateTime startDate = start != null && !start.isBlank() ? LocalDateTime.parse(start) : null;
-        LocalDateTime endDate = end != null && !end.isBlank() ? LocalDateTime.parse(end) : null;
+        LocalDateTime startDate = null;
+        if (start != null && !start.isBlank()) {
+            try {
+                startDate = LocalDateTime.parse(start);
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("Invalid date format for start: " + start);
+            }
+        }
+        LocalDateTime endDate = null;
+        if (end != null && !end.isBlank()) {
+            try {
+                endDate = LocalDateTime.parse(end);
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("Invalid date format for end: " + end);
+            }
+        }
 
         List<Object[]> rawData;
         String dim;

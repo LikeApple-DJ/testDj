@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.service.AlgorithmService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -17,19 +18,30 @@ public class SortController {
     private AlgorithmService algorithmService;
 
     @PostMapping("/bubble")
-    public Map<String, Object> bubbleSort(@RequestBody Map<String, Object> request) {
-        @SuppressWarnings("unchecked")
-        List<Integer> list = (List<Integer>) request.get("array");
-        int[] array = list.stream().mapToInt(Integer::intValue).toArray();
+    public ResponseEntity<?> bubbleSort(@RequestBody Map<String, Object> request) {
+        try {
+            Object arrayObj = request.get("array");
+            if (arrayObj == null || !(arrayObj instanceof List)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "array must be a non-null list", "status", 400));
+            }
 
-        long startTime = System.currentTimeMillis();
-        int[] sorted = algorithmService.bubbleSort(array);
-        long duration = System.currentTimeMillis() - startTime;
+            @SuppressWarnings("unchecked")
+            List<Integer> list = (List<Integer>) arrayObj;
+            int[] array = list.stream().mapToInt(Integer::intValue).toArray();
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("original", list);
-        result.put("sorted", java.util.Arrays.stream(sorted).boxed().collect(Collectors.toList()));
-        result.put("duration", duration);
-        return result;
+            long startTime = System.currentTimeMillis();
+            int[] sorted = algorithmService.bubbleSort(array);
+            long duration = System.currentTimeMillis() - startTime;
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("original", list);
+            result.put("sorted", java.util.Arrays.stream(sorted).boxed().collect(Collectors.toList()));
+            result.put("duration", duration);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid array format", "status", 400));
+        }
     }
 }
