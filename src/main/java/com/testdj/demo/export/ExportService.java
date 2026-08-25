@@ -37,6 +37,15 @@ public class ExportService {
 
     public byte[] export(ExportRequest request) {
         String format = request.format();
+        if (format == null || format.isBlank()) {
+            throw new BusinessException(ErrorCode.EXPORT_UNSUPPORTED_FORMAT,
+                    ErrorCode.EXPORT_UNSUPPORTED_FORMAT_MSG + ": format is required");
+        }
+        String tab = request.tab();
+        if (tab == null || tab.isBlank()) {
+            throw new BusinessException(ErrorCode.EXPORT_UNKNOWN_TAB,
+                    ErrorCode.EXPORT_UNKNOWN_TAB_MSG + ": tab is required");
+        }
         List<String[]> rows = buildRows(request);
         return switch (format.toLowerCase()) {
             case "csv" -> toCsv(rows);
@@ -95,9 +104,25 @@ public class ExportService {
     private byte[] toCsv(List<String[]> rows) {
         StringBuilder sb = new StringBuilder();
         for (String[] row : rows) {
-            sb.append(String.join(",", row)).append("\n");
+            for (int i = 0; i < row.length; i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(escapeCsv(row[i]));
+            }
+            sb.append('\n');
         }
         return sb.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     private byte[] toExcel(List<String[]> rows) {

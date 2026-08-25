@@ -14,6 +14,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ApiResponse<Void> handleBusiness(BusinessException e) {
+        LOGGER.warn("business exception: code={}, message={}", e.getCode(), e.getMessage(), e);
         return ApiResponse.error(e.getCode(), e.getMessage());
     }
 

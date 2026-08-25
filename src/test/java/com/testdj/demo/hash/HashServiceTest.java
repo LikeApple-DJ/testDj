@@ -22,11 +22,19 @@ class HashServiceTest {
     }
 
     @Test
-    void shouldReturnMd5WhenRequested() {
+    void shouldThrowWhenAlgorithmIsWeak() {
         HashRequest request = new HashRequest("MD5", "hello");
+        BusinessException ex = assertThrows(BusinessException.class, () -> hashService.hash(request));
+        assertEquals(ErrorCode.HASH_UNSUPPORTED_ALGORITHM, ex.getCode());
+        assertTrue(ex.getMessage().contains("unsupported algorithm"));
+    }
+
+    @Test
+    void shouldReturnSha384WhenRequested() {
+        HashRequest request = new HashRequest("SHA-384", "hello");
         HashResponse response = hashService.hash(request);
-        assertEquals("MD5", response.algorithm());
-        assertEquals("5d41402abc4b2a76b9719d911017c592", response.hash());
+        assertEquals("SHA-384", response.algorithm());
+        assertTrue(response.hash().length() > 0);
     }
 
     @Test

@@ -9,15 +9,22 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Set;
 
 @Service
 public class HashService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HashService.class);
 
+    private static final Set<String> ALLOWED_ALGORITHMS = Set.of("SHA-256", "SHA-384", "SHA-512");
+
     public HashResponse hash(HashRequest request) {
         String algorithm = request.algorithm() == null ? "SHA-256" : request.algorithm();
         String content = request.content();
+        if (!ALLOWED_ALGORITHMS.contains(algorithm)) {
+            throw new BusinessException(ErrorCode.HASH_UNSUPPORTED_ALGORITHM,
+                    ErrorCode.HASH_UNSUPPORTED_ALGORITHM_MSG + ": " + algorithm);
+        }
         if (content == null || content.isEmpty()) {
             throw new BusinessException(ErrorCode.HASH_CONTENT_EMPTY, ErrorCode.HASH_CONTENT_EMPTY_MSG);
         }
