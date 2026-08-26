@@ -4,9 +4,9 @@
     "loop": "loop-1",
     "skill": "brainstorming",
     "status": "completed",
-    "summary": "完成跨仓需求澄清。确认技术栈：Java Spring Boot (testDj=后端) + React (testDJnew=前端) + ECharts。确认哈希算法支持 MD5/SHA-1/SHA-256，导出格式 Excel (.xlsx)，JWT Token + 数据库 user_profile 表做身份识别与维度查询。已输出详细项目结构方案和仓间接口契约（5 个 API）。",
+    "summary": "完成跨仓需求澄清与 Spec Self-Review。确认技术栈：Java Spring Boot 3.2 (testDj=后端) + React 18 (testDJnew=前端) + ECharts 5。确认哈希算法支持 MD5/SHA-1/SHA-256，导出格式 Excel (.xlsx)，JWT Token + 数据库 user_profile 表做身份识别与维度查询。修复 dima.md 中 2 处待澄清占位符（Hash/BubbleSort 交互方式）。已输出完整设计分析文档（dima.md）和仓间接口契约（5 个 API）。",
     "artifacts": [
-      "dima.md (设计分析文档，含项目结构+接口契约)",
+      "dima.md (设计分析文档，含项目结构+接口契约，已通过 spec self-review)",
       "run_context.json (本文件)"
     ],
     "decisions": [
@@ -14,9 +14,18 @@
       {"Q": "仓库角色分配", "A": "testDj=后端, testDJnew=前端"},
       {"Q": "哈希算法", "A": "MD5 / SHA-1 / SHA-256，通过 algorithm 参数选择"},
       {"Q": "导出格式", "A": "Excel (.xlsx)，后端生成文件流下载"},
-      {"Q": "调用人身份与维度", "A": "JWT Token 解析 + user_profile 数据库表"}
+      {"Q": "调用人身份与维度", "A": "JWT Token 解析 + user_profile 数据库表"},
+      {"Q": "Hash Tab 交互方式", "A": "文本输入框 + 算法下拉选择（MD5/SHA-1/SHA-256）"},
+      {"Q": "BubbleSort Tab 交互方式", "A": "JSON 数组文本输入框（如 [3,1,4,1,5]）"}
     ],
+    "self_review": {
+      "placeholder_scan": "pass — 已修复 2 处 '?' 占位符",
+      "internal_consistency": "pass — 架构与功能描述一致，5 个 API 契约前后对齐",
+      "scope_check": "pass — 范围适中，单次实施计划可覆盖",
+      "ambiguity_check": "pass — 所有决策点已明确"
+    },
     "open_questions": [],
-    "next_phase": "详细设计（writing-plans）— 按 dima.md 项目结构初始化两仓代码"
+    "spec_review_approved": true,
+    "next_phase": "详细设计（writing-plans）— 用户已批准 spec，按 dima.md 项目结构初始化两仓代码；plan.md（10 Task）已就绪，可直接执行"
   }
 }

@@ -30,8 +30,8 @@
 | 功能 | 描述 | 待澄清 |
 |------|------|--------|
 | Tab 1: HelloWorld | 展示 `/helloworld` 接口结果 | — |
-| Tab 2: Hash | 展示 `/hash` 接口结果 | 输入参数交互方式？ |
-| Tab 3: BubbleSort | 展示 `/bubblesort` 接口结果 | 输入参数交互方式？ |
+| Tab 2: Hash | 展示 `/hash` 接口结果 | ✅ 文本输入框 + 算法下拉选择（MD5/SHA-1/SHA-256） |
+| Tab 3: BubbleSort | 展示 `/bubblesort` 接口结果 | ✅ JSON 数组文本输入框（如 `[3,1,4,1,5]`） |
 | 导出按钮 | 每个 Tab 有导出按钮 | ✅ Excel (.xlsx)，后端生成文件下载 |
 | 导出接口 | 后端提供导出 API | `/api/export?tab=helloworld|hash|bubblesort`，返回 `.xlsx` 流 |
 
