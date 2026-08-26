@@ -1,108 +1,44 @@
-# 跨仓协同开发 — 实施计划
+# 跨仓算法服务 + 埋点报表 — 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 从零构建跨仓全栈应用：后端 3 个核心算法接口 + 导出 + 埋点统计，前端 3 Tab 展示 + 导出按钮 + ECharts 多维报表可视化。
+**Goal:** 在 testDj（后端 Spring Boot）与 testDJnew（前端 React）两仓中实现三个算法接口（helloworld/hash/bubblesort）、导出功能、埋点日志及可视化报表。
 
-**Architecture:** Java Spring Boot 后端（testDj）提供 RESTful API，React 前端（testDJnew）通过 axios 调用。后端基于 JWT 做身份识别，H2 内存数据库存储埋点日志与用户维度数据，Apache POI 生成 Excel 导出。前端使用 ECharts 渲染折线图/饼图/柱状图。
+**Architecture:** 后端 Spring Boot 3.2 提供 REST API，通过 JWT 做身份识别，H2 内存数据库存储埋点日志与用户维度数据；前端 React 18 通过 axios 调用后端，ECharts 5 渲染折线图/饼图/柱状图。仓间交互边界为 5 个 API 契约。
 
-**Tech Stack:** Java 17 + Spring Boot 3.2 + Spring Security + JWT (jjwt) + H2 + Apache POI + Maven | React 18 + axios + ECharts 5 + react-router-dom 6
+**Tech Stack:** Java 17 + Spring Boot 3.2 + H2 + Apache POI + JWT (jjwt) | React 18 + axios + ECharts 5 + react-tabs
+
+**Repos:**
+- `[testDj]` = `/root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main` — 后端
+- `[testDJnew]` = `/root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDJnew-main` — 前端
 
 ---
 
 ## Global Constraints
 
-- 所有 API 路径前缀 `/api/`
-- 后端端口 8080，前端端口 3000（开发模式 proxy 到 8080）
-- 跨域 CORS 允许 `http://localhost:3000`
-- JWT Token 通过 `Authorization: Bearer <token>` 传递
-- 埋点记录每次 API 调用的 username + api_path + timestamp
-- 导出格式统一为 `.xlsx`（Apache POI）
-- 前端的请求/响应格式必须与 §4.3 接口契约严格对齐
+- Java 17+, Spring Boot 3.2.x, Maven 3.8+
+- React 18, ECharts 5, react-tabs
+- 所有接口路径以 `/api/` 为前缀
+- 导出格式：Excel (.xlsx)，后端生成 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` 流
+- 身份识别：JWT Token（Header: `Authorization: Bearer <token>`），解析 username → 关联 user_profile 表
+- 埋点：每次 /api/* 调用写入 invocation_log 表（非 /api/stats 和 /api/export 自身）
+- CORS 允许前端跨域（localhost:3000）
+- 数据库：H2 内存数据库，启动时自动建表 + 初始化 user_profile 种子数据
+- 哈希算法：MD5、SHA-1、SHA-256，通过 algorithm 参数选择
+- 冒泡排序：输入 JSON 整数数组，返回排序结果 + 每步中间状态
+- 报表维度：type（人员类型）、level（人员层级）、department（人员部门），chart 参数：line/pie/bar
 
 ---
 
-## File Structure
-
-### 后端 `[testDj]` — 新增文件清单
-
-```
-testDj-main/
-├── pom.xml                                  # Maven 依赖管理
-├── src/main/java/com/example/demo/
-│   ├── DemoApplication.java                 # Spring Boot 启动类
-│   ├── config/
-│   │   ├── SecurityConfig.java              # Spring Security 配置 + JWT 过滤器注册
-│   │   └── WebConfig.java                   # CORS 跨域配置
-│   ├── controller/
-│   │   ├── AlgorithmController.java         # /api/helloworld, /api/hash, /api/bubblesort
-│   │   ├── ExportController.java            # /api/export
-│   │   └── StatsController.java             # /api/stats
-│   ├── service/
-│   │   ├── AlgorithmService.java            # 哈希算法 + 冒泡排序逻辑
-│   │   ├── ExportService.java               # Excel 生成
-│   │   └── StatsService.java                # 埋点查询 + 维度聚合
-│   ├── model/
-│   │   ├── InvocationLog.java               # JPA 实体：埋点日志
-│   │   └── UserProfile.java                 # JPA 实体：用户维度
-│   ├── repository/
-│   │   ├── InvocationLogRepository.java     # 埋点日志 DAO
-│   │   └── UserProfileRepository.java       # 用户维度 DAO
-│   ├── security/
-│   │   ├── JwtTokenFilter.java              # OncePerRequestFilter：JWT 解析
-│   │   └── JwtTokenProvider.java            # JWT 生成/验证工具
-│   └── dto/
-│       ├── HashRequest.java                 # 哈希请求 DTO
-│       ├── SortRequest.java                 # 排序请求 DTO
-│       └── StatsResponse.java               # 统计响应 DTO
-└── src/main/resources/
-    ├── application.yml                      # 应用配置
-    └── data.sql                             # 初始化用户维度 + 测试埋点数据
-```
-
-### 前端 `[testDJnew]` — 新增文件清单
-
-```
-testDJnew-main/
-├── package.json                             # 依赖声明
-├── public/
-│   └── index.html                           # HTML 入口
-├── src/
-│   ├── App.jsx                              # 路由 + 布局壳
-│   ├── index.jsx                            # ReactDOM 挂载
-│   ├── pages/
-│   │   ├── DashboardPage.jsx                # 主页面：3 Tab + 导出
-│   │   └── ReportPage.jsx                   # 报表页面：维度选择器 + 3 图表
-│   ├── components/
-│   │   ├── HelloWorldTab.jsx                # Tab 1：展示 HelloWorld 结果
-│   │   ├── HashTab.jsx                      # Tab 2：输入文本 + 算法选择 → 展示哈希
-│   │   ├── BubbleSortTab.jsx                # Tab 3：输入数组 → 展示排序步骤
-│   │   ├── ExportButton.jsx                 # 通用导出按钮
-│   │   ├── LineChart.jsx                    # ECharts 折线图
-│   │   ├── PieChart.jsx                     # ECharts 饼图
-│   │   ├── BarChart.jsx                     # ECharts 柱状图
-│   │   └── DimensionSelector.jsx            # 维度 + 图表类型切换控件
-│   ├── services/
-│   │   └── api.js                           # axios 实例 + 5 个 API 封装函数
-│   └── utils/
-│       └── auth.js                          # JWT Token 存储/读取
-```
-
----
-
-## Tasks
-
-### Task 1: 后端项目骨架 — pom.xml + 启动类 + 配置
+## Task 1: 后端项目骨架 — pom.xml + 启动类 + 配置
 
 **Files:**
-- Create: `testDj-main/pom.xml`
-- Create: `testDj-main/src/main/java/com/example/demo/DemoApplication.java`
-- Create: `testDj-main/src/main/resources/application.yml`
-- Create: `testDj-main/src/main/java/com/example/demo/config/WebConfig.java`
-- Create: `testDj-main/src/main/java/com/example/demo/config/SecurityConfig.java`
+- Create: `[testDj] pom.xml`
+- Create: `[testDj] src/main/java/com/example/demo/DemoApplication.java`
+- Create: `[testDj] src/main/resources/application.yml`
 
 **Interfaces:**
-- Produces: `DemoApplication` 启动类（Spring Boot 入口），`WebConfig` 允许 `http://localhost:3000` CORS，`SecurityConfig` 注册 JwtTokenFilter 并放行 `/api/**`
+- Produces: `DemoApplication` 启动类（Spring Boot 入口），`application.yml` 配置，`pom.xml` 依赖声明
 
 - [ ] **Step 1: 创建 pom.xml**
 
@@ -122,7 +58,7 @@ testDJnew-main/
     <artifactId>demo</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>demo</name>
-    <description>Demo project for Spring Boot</description>
+    <description>Algorithm Service with Tracking</description>
     <properties>
         <java.version>17</java.version>
     </properties>
@@ -133,11 +69,11 @@ testDJnew-main/
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
@@ -209,135 +145,258 @@ spring:
   h2:
     console:
       enabled: true
-      path: /h2-console
   jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: false
-    defer-datasource-initialization: true
   sql:
     init:
       mode: always
 
-jwt:
-  secret: c2VjdXJlLXNlY3JldC1rZXktZm9yLWRlbW8tYXBwbGljYXRpb24tMjAyNQ==
-  expiration: 86400000
+app:
+  jwt:
+    secret: cross-repo-demo-secret-key-2025-min-256-bits-long!!
+    expiration-ms: 3600000
 ```
 
-- [ ] **Step 4: 创建 WebConfig.java**
-
-```java
-package com.example.demo.config;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-@Configuration
-public class WebConfig {
-    @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:3000")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
-            }
-        };
-    }
-}
-```
-
-- [ ] **Step 5: 创建 SecurityConfig.java**
-
-```java
-package com.example.demo.config;
-
-import com.example.demo.security.JwtTokenFilter;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-@Configuration
-@EnableWebSecurity
-public class SecurityConfig {
-
-    private final JwtTokenFilter jwtTokenFilter;
-
-    public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
-        this.jwtTokenFilter = jwtTokenFilter;
-    }
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
-        return http.build();
-    }
-}
-```
-
-- [ ] **Step 6: 验证 — 编译项目**
+- [ ] **Step 4: 验证编译**
 
 Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
 Expected: BUILD SUCCESS
 
 ---
 
-### Task 2: 后端 JWT 安全组件
+## Task 2: 后端数据模型 — Entity + Repository + 种子数据
 
 **Files:**
-- Create: `testDj-main/src/main/java/com/example/demo/security/JwtTokenProvider.java`
-- Create: `testDj-main/src/main/java/com/example/demo/security/JwtTokenFilter.java`
+- Create: `[testDj] src/main/java/com/example/demo/model/InvocationLog.java`
+- Create: `[testDj] src/main/java/com/example/demo/model/UserProfile.java`
+- Create: `[testDj] src/main/java/com/example/demo/repository/InvocationLogRepository.java`
+- Create: `[testDj] src/main/java/com/example/demo/repository/UserProfileRepository.java`
+- Create: `[testDj] src/main/resources/data.sql`
 
 **Interfaces:**
-- Produces: `JwtTokenProvider` — `String generateToken(String username)`, `String getUsernameFromToken(String token)`, `boolean validateToken(String token)`
-- Produces: `JwtTokenFilter` — 从 `Authorization: Bearer <token>` 解析 username，设置到 SecurityContext；若无 token 则设匿名用户 "anonymous"
+- Consumes: JPA auto-scan（由 Task 1 的 application.yml 配置激活）
+- Produces:
+  - `InvocationLog` entity: `id (Long)`, `username (String)`, `api (String)`, `timestamp (LocalDateTime)`
+  - `UserProfile` entity: `id (Long)`, `username (String, unique)`, `type (String)`, `level (String)`, `department (String)`
+  - `InvocationLogRepository extends JpaRepository<InvocationLog, Long>` + 聚合查询方法
+  - `UserProfileRepository extends JpaRepository<UserProfile, Long>` + `findByUsername(String)`
+
+- [ ] **Step 1: 创建 InvocationLog.java**
+
+```java
+package com.example.demo.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "invocation_log")
+public class InvocationLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String username;
+
+    @Column(nullable = false)
+    private String api;
+
+    @Column(nullable = false)
+    private LocalDateTime timestamp;
+
+    public InvocationLog() {}
+
+    public InvocationLog(String username, String api, LocalDateTime timestamp) {
+        this.username = username;
+        this.api = api;
+        this.timestamp = timestamp;
+    }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getApi() { return api; }
+    public void setApi(String api) { this.api = api; }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+}
+```
+
+- [ ] **Step 2: 创建 UserProfile.java**
+
+```java
+package com.example.demo.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "user_profile")
+public class UserProfile {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String username;
+
+    @Column(nullable = false)
+    private String type;
+
+    @Column(nullable = false)
+    private String level;
+
+    @Column(nullable = false)
+    private String department;
+
+    public UserProfile() {}
+
+    public UserProfile(String username, String type, String level, String department) {
+        this.username = username;
+        this.type = type;
+        this.level = level;
+        this.department = department;
+    }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public String getLevel() { return level; }
+    public void setLevel(String level) { this.level = level; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+}
+```
+
+- [ ] **Step 3: 创建 InvocationLogRepository.java**
+
+```java
+package com.example.demo.repository;
+
+import com.example.demo.model.InvocationLog;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface InvocationLogRepository extends JpaRepository<InvocationLog, Long> {
+
+    long countByApi(String api);
+
+    long countByUsername(String username);
+
+    @Query("SELECT i.api, COUNT(i) FROM InvocationLog i GROUP BY i.api")
+    List<Object[]> countGroupByApi();
+
+    @Query("SELECT i.username, COUNT(i) FROM InvocationLog i GROUP BY i.username")
+    List<Object[]> countGroupByUsername();
+
+    @Query("SELECT u.type, COUNT(i) FROM InvocationLog i JOIN UserProfile u ON i.username = u.username GROUP BY u.type")
+    List<Object[]> countGroupByUserType();
+
+    @Query("SELECT u.level, COUNT(i) FROM InvocationLog i JOIN UserProfile u ON i.username = u.username GROUP BY u.level")
+    List<Object[]> countGroupByUserLevel();
+
+    @Query("SELECT u.department, COUNT(i) FROM InvocationLog i JOIN UserProfile u ON i.username = u.username GROUP BY u.department")
+    List<Object[]> countGroupByUserDepartment();
+
+    @Query("SELECT u.type, i.api, COUNT(i) FROM InvocationLog i JOIN UserProfile u ON i.username = u.username GROUP BY u.type, i.api")
+    List<Object[]> countGroupByTypeAndApi();
+}
+```
+
+- [ ] **Step 4: 创建 UserProfileRepository.java**
+
+```java
+package com.example.demo.repository;
+
+import com.example.demo.model.UserProfile;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface UserProfileRepository extends JpaRepository<UserProfile, Long> {
+    Optional<UserProfile> findByUsername(String username);
+}
+```
+
+- [ ] **Step 5: 创建 data.sql 种子数据**
+
+```sql
+INSERT INTO user_profile (username, type, level, department) VALUES ('admin', '正式员工', 'P8', '技术部');
+INSERT INTO user_profile (username, type, level, department) VALUES ('zhangsan', '正式员工', 'P6', '技术部');
+INSERT INTO user_profile (username, type, level, department) VALUES ('lisi', '外包', 'P5', '产品部');
+INSERT INTO user_profile (username, type, level, department) VALUES ('wangwu', '实习生', 'P3', '产品部');
+INSERT INTO user_profile (username, type, level, department) VALUES ('zhaoliu', '正式员工', 'P7', '数据部');
+```
+
+- [ ] **Step 6: 验证编译**
+
+Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
+Expected: BUILD SUCCESS
+
+---
+
+## Task 3: 后端安全 — JWT + CORS 配置
+
+**Files:**
+- Create: `[testDj] src/main/java/com/example/demo/security/JwtTokenProvider.java`
+- Create: `[testDj] src/main/java/com/example/demo/security/JwtTokenFilter.java`
+- Create: `[testDj] src/main/java/com/example/demo/config/SecurityConfig.java`
+- Create: `[testDj] src/main/java/com/example/demo/config/WebConfig.java`
+
+**Interfaces:**
+- Consumes: `application.yml` 中的 `app.jwt.secret` / `app.jwt.expiration-ms`
+- Produces:
+  - `JwtTokenProvider.generateToken(String username)` → `String`
+  - `JwtTokenProvider.getUsernameFromToken(String token)` → `String`
+  - `JwtTokenProvider.validateToken(String token)` → `boolean`
+  - `JwtTokenFilter` — OncePerRequestFilter，从 Header 解析 Token，设置 SecurityContext
+  - `SecurityConfig` — 放行 `/api/**`（仅做身份提取，不做强制认证），禁用 CSRF
+  - `WebConfig` — CORS 允许 `http://localhost:3000`，所有方法/Header
 
 - [ ] **Step 1: 创建 JwtTokenProvider.java**
 
 ```java
 package com.example.demo.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
     private final SecretKey key;
-    private final long expiration;
+    private final long expirationMs;
 
-    public JwtTokenProvider(@Value("${jwt.secret}") String secret,
-                            @Value("${jwt.expiration}") long expiration) {
-        this.key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret));
-        this.expiration = expiration;
+    public JwtTokenProvider(@Value("${app.jwt.secret}") String secret,
+                            @Value("${app.jwt.expiration-ms}") long expirationMs) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
     }
 
     public String generateToken(String username) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expiration);
+        Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(now)
@@ -347,19 +406,19 @@ public class JwtTokenProvider {
     }
 
     public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
+        return Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
-                .getPayload();
-        return claims.getSubject();
+                .getPayload()
+                .getSubject();
     }
 
     public boolean validateToken(String token) {
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
             return true;
-        } catch (Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
@@ -398,16 +457,15 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
-        String username = "anonymous";
-
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            username = jwtTokenProvider.getUsernameFromToken(token);
+        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+            String username = jwtTokenProvider.getUsernameFromToken(token);
+            UsernamePasswordAuthenticationToken auth =
+                    new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        } else {
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken("anonymous", null, Collections.emptyList()));
         }
-
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
         filterChain.doFilter(request, response);
     }
 
@@ -421,154 +479,95 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 }
 ```
 
+- [ ] **Step 3: 创建 SecurityConfig.java**
+
+```java
+package com.example.demo.config;
+
+import com.example.demo.security.JwtTokenFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    private final JwtTokenFilter jwtTokenFilter;
+
+    public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
+        this.jwtTokenFilter = jwtTokenFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+            .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+}
+```
+
+- [ ] **Step 4: 创建 WebConfig.java**
+
+```java
+package com.example.demo.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig {
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                        .allowedOrigins("http://localhost:3000")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
+            }
+        };
+    }
+}
+```
+
+- [ ] **Step 5: 验证编译**
+
+Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
+Expected: BUILD SUCCESS
+
 ---
 
-### Task 3: 后端实体模型 + DTO + 数据初始化
+## Task 4: 后端 DTO + Service 层 — 算法服务
 
 **Files:**
-- Create: `testDj-main/src/main/java/com/example/demo/model/InvocationLog.java`
-- Create: `testDj-main/src/main/java/com/example/demo/model/UserProfile.java`
-- Create: `testDj-main/src/main/java/com/example/demo/repository/InvocationLogRepository.java`
-- Create: `testDj-main/src/main/java/com/example/demo/repository/UserProfileRepository.java`
-- Create: `testDj-main/src/main/java/com/example/demo/dto/HashRequest.java`
-- Create: `testDj-main/src/main/java/com/example/demo/dto/SortRequest.java`
-- Create: `testDj-main/src/main/java/com/example/demo/dto/StatsResponse.java`
-- Create: `testDj-main/src/main/resources/data.sql`
+- Create: `[testDj] src/main/java/com/example/demo/dto/HashRequest.java`
+- Create: `[testDj] src/main/java/com/example/demo/dto/SortRequest.java`
+- Create: `[testDj] src/main/java/com/example/demo/service/AlgorithmService.java`
 
 **Interfaces:**
-- Produces: `InvocationLog` entity (id, username, apiPath, timestamp), `UserProfile` entity (id, username, type, level, department)
-- Produces: `InvocationLogRepository` extends JpaRepository with `countByApiPath(String)` and `findAll()`; `UserProfileRepository` extends JpaRepository with `findByUsername(String)`
-- Produces: `HashRequest` (input: String, algorithm: String), `SortRequest` (array: int[]), `StatsResponse` (dimension: String, data: List<KV>)
+- Consumes: —
+- Produces:
+  - `HashRequest` record: `String input`, `String algorithm`
+  - `SortRequest` record: `List<Integer> array`
+  - `AlgorithmService.helloWorld()` → `Map<String, String>` (含 message + timestamp)
+  - `AlgorithmService.computeHash(HashRequest req)` → `Map<String, Object>` (含 algorithm, input, hash)
+  - `AlgorithmService.bubbleSort(SortRequest req)` → `Map<String, Object>` (含 original, sorted, steps)
 
-- [ ] **Step 1: 创建 InvocationLog.java**
-
-```java
-package com.example.demo.model;
-
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "invocation_log")
-public class InvocationLog {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String username;
-
-    @Column(name = "api_path", nullable = false)
-    private String apiPath;
-
-    @Column(nullable = false)
-    private LocalDateTime timestamp;
-
-    public InvocationLog() {}
-
-    public InvocationLog(String username, String apiPath, LocalDateTime timestamp) {
-        this.username = username;
-        this.apiPath = apiPath;
-        this.timestamp = timestamp;
-    }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getApiPath() { return apiPath; }
-    public void setApiPath(String apiPath) { this.apiPath = apiPath; }
-    public LocalDateTime getTimestamp() { return timestamp; }
-    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-}
-```
-
-- [ ] **Step 2: 创建 UserProfile.java**
-
-```java
-package com.example.demo.model;
-
-import jakarta.persistence.*;
-
-@Entity
-@Table(name = "user_profile")
-public class UserProfile {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String username;
-
-    @Column(name = "user_type", nullable = false)
-    private String userType;
-
-    @Column(nullable = false)
-    private String level;
-
-    @Column(nullable = false)
-    private String department;
-
-    public UserProfile() {}
-
-    public UserProfile(String username, String userType, String level, String department) {
-        this.username = username;
-        this.userType = userType;
-        this.level = level;
-        this.department = department;
-    }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getUserType() { return userType; }
-    public void setUserType(String userType) { this.userType = userType; }
-    public String getLevel() { return level; }
-    public void setLevel(String level) { this.level = level; }
-    public String getDepartment() { return department; }
-    public void setDepartment(String department) { this.department = department; }
-}
-```
-
-- [ ] **Step 3: 创建 InvocationLogRepository.java**
-
-```java
-package com.example.demo.repository;
-
-import com.example.demo.model.InvocationLog;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-
-@Repository
-public interface InvocationLogRepository extends JpaRepository<InvocationLog, Long> {
-    long countByApiPath(String apiPath);
-    List<InvocationLog> findAll();
-}
-```
-
-- [ ] **Step 4: 创建 UserProfileRepository.java**
-
-```java
-package com.example.demo.repository;
-
-import com.example.demo.model.UserProfile;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
-
-@Repository
-public interface UserProfileRepository extends JpaRepository<UserProfile, Long> {
-    Optional<UserProfile> findByUsername(String username);
-}
-```
-
-- [ ] **Step 5: 创建 HashRequest.java**
+- [ ] **Step 1: 创建 HashRequest.java**
 
 ```java
 package com.example.demo.dto;
@@ -577,6 +576,12 @@ public class HashRequest {
     private String input;
     private String algorithm;
 
+    public HashRequest() {}
+    public HashRequest(String input, String algorithm) {
+        this.input = input;
+        this.algorithm = algorithm;
+    }
+
     public String getInput() { return input; }
     public void setInput(String input) { this.input = input; }
     public String getAlgorithm() { return algorithm; }
@@ -584,117 +589,35 @@ public class HashRequest {
 }
 ```
 
-- [ ] **Step 6: 创建 SortRequest.java**
-
-```java
-package com.example.demo.dto;
-
-public class SortRequest {
-    private int[] array;
-
-    public int[] getArray() { return array; }
-    public void setArray(int[] array) { this.array = array; }
-}
-```
-
-- [ ] **Step 7: 创建 StatsResponse.java**
+- [ ] **Step 2: 创建 SortRequest.java**
 
 ```java
 package com.example.demo.dto;
 
 import java.util.List;
 
-public class StatsResponse {
-    private String dimension;
-    private List<KeyValue> data;
+public class SortRequest {
+    private List<Integer> array;
 
-    public StatsResponse(String dimension, List<KeyValue> data) {
-        this.dimension = dimension;
-        this.data = data;
-    }
+    public SortRequest() {}
+    public SortRequest(List<Integer> array) { this.array = array; }
 
-    public String getDimension() { return dimension; }
-    public void setDimension(String dimension) { this.dimension = dimension; }
-    public List<KeyValue> getData() { return data; }
-    public void setData(List<KeyValue> data) { this.data = data; }
-
-    public static class KeyValue {
-        private String key;
-        private long count;
-
-        public KeyValue(String key, long count) {
-            this.key = key;
-            this.count = count;
-        }
-
-        public String getKey() { return key; }
-        public void setKey(String key) { this.key = key; }
-        public long getCount() { return count; }
-        public void setCount(long count) { this.count = count; }
-    }
+    public List<Integer> getArray() { return array; }
+    public void setArray(List<Integer> array) { this.array = array; }
 }
 ```
 
-- [ ] **Step 8: 创建 data.sql**
-
-```sql
-INSERT INTO user_profile (username, user_type, level, department) VALUES
-('zhangsan', '正式员工', 'P6', '技术部'),
-('lisi', '正式员工', 'P7', '技术部'),
-('wangwu', '外包', 'P5', '产品部'),
-('zhaoliu', '正式员工', 'P8', '技术部'),
-('sunqi', '实习生', 'P4', '产品部'),
-('zhouba', '外包', 'P5', '技术部'),
-('wujiu', '正式员工', 'P7', '产品部'),
-('zhengshi', '正式员工', 'P6', '运营部');
-
-INSERT INTO invocation_log (username, api_path, timestamp) VALUES
-('zhangsan', '/api/helloworld', '2025-07-15 10:00:00'),
-('lisi', '/api/hash', '2025-07-15 10:05:00'),
-('zhangsan', '/api/hash', '2025-07-15 10:10:00'),
-('wangwu', '/api/bubblesort', '2025-07-15 10:15:00'),
-('zhaoliu', '/api/helloworld', '2025-07-15 10:20:00'),
-('zhangsan', '/api/bubblesort', '2025-07-15 10:25:00'),
-('lisi', '/api/helloworld', '2025-07-15 10:30:00'),
-('sunqi', '/api/hash', '2025-07-15 10:35:00'),
-('zhouba', '/api/helloworld', '2025-07-15 10:40:00'),
-('wujiu', '/api/bubblesort', '2025-07-15 10:45:00'),
-('zhengshi', '/api/hash', '2025-07-15 10:50:00'),
-('zhangsan', '/api/helloworld', '2025-07-15 11:00:00'),
-('lisi', '/api/bubblesort', '2025-07-15 11:05:00'),
-('wangwu', '/api/hash', '2025-07-15 11:10:00');
-```
-
-- [ ] **Step 9: 验证 — 编译**
-
-Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
-Expected: BUILD SUCCESS
-
----
-
-### Task 4: 后端 AlgorithmService + AlgorithmController
-
-**Files:**
-- Create: `testDj-main/src/main/java/com/example/demo/service/AlgorithmService.java`
-- Create: `testDj-main/src/main/java/com/example/demo/controller/AlgorithmController.java`
-
-**Interfaces:**
-- Consumes: `HashRequest`, `SortRequest` DTOs; `InvocationLogRepository` (for 埋点); `SecurityContextHolder` (for username)
-- Produces: `AlgorithmService` — `Map<String,Object> helloworld()`, `Map<String,Object> hash(HashRequest)`, `Map<String,Object> bubbleSort(SortRequest)`
-- Produces: `AlgorithmController` — GET `/api/helloworld`, POST `/api/hash`, POST `/api/bubblesort`
-
-- [ ] **Step 1: 创建 AlgorithmService.java**
+- [ ] **Step 3: 创建 AlgorithmService.java**
 
 ```java
 package com.example.demo.service;
 
 import com.example.demo.dto.HashRequest;
 import com.example.demo.dto.SortRequest;
-import com.example.demo.model.InvocationLog;
-import com.example.demo.repository.InvocationLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -702,97 +625,110 @@ import java.util.*;
 @Service
 public class AlgorithmService {
 
-    private final InvocationLogRepository logRepository;
+    private static final Set<String> ALLOWED_ALGORITHMS = Set.of("MD5", "SHA-1", "SHA-256");
 
-    public AlgorithmService(InvocationLogRepository logRepository) {
-        this.logRepository = logRepository;
-    }
-
-    public Map<String, Object> helloworld() {
-        Map<String, Object> result = new LinkedHashMap<>();
+    public Map<String, String> helloWorld() {
+        Map<String, String> result = new LinkedHashMap<>();
         result.put("message", "Hello World");
         result.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         return result;
     }
 
-    public Map<String, Object> hash(HashRequest request) {
-        String algorithm = request.getAlgorithm();
-        if (algorithm == null || algorithm.isBlank()) {
-            algorithm = "SHA-256";
-        }
-        String algorithmUpper = algorithm.toUpperCase();
-
-        Set<String> supported = Set.of("MD5", "SHA-1", "SHA-256");
-        if (!supported.contains(algorithmUpper)) {
-            throw new IllegalArgumentException("Unsupported algorithm: " + algorithm + ". Supported: MD5, SHA-1, SHA-256");
+    public Map<String, Object> computeHash(HashRequest request) {
+        String algorithm = request.getAlgorithm() != null ? request.getAlgorithm().toUpperCase() : "SHA-256";
+        if (!ALLOWED_ALGORITHMS.contains(algorithm)) {
+            throw new IllegalArgumentException("Unsupported algorithm: " + algorithm + ". Allowed: MD5, SHA-1, SHA-256");
         }
 
+        String input = request.getInput() != null ? request.getInput() : "";
+        String hash = "";
         try {
-            String javaAlgo = algorithmUpper.equals("SHA-1") ? "SHA-1" : algorithmUpper;
-            MessageDigest md = MessageDigest.getInstance(javaAlgo);
-            byte[] digest = md.digest(request.getInput().getBytes());
-            StringBuilder hex = new StringBuilder();
+            MessageDigest md = MessageDigest.getInstance(algorithm);
+            byte[] digest = md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
             for (byte b : digest) {
-                hex.append(String.format("%02x", b));
+                sb.append(String.format("%02x", b));
             }
-
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("algorithm", algorithmUpper);
-            result.put("input", request.getInput());
-            result.put("hash", hex.toString());
-            return result;
-        } catch (Exception e) {
-            throw new RuntimeException("Hash computation failed", e);
-        }
-    }
-
-    public Map<String, Object> bubbleSort(SortRequest request) {
-        int[] arr = Arrays.copyOf(request.getArray(), request.getArray().length);
-        List<Map<String, Object>> steps = new ArrayList<>();
-
-        int n = arr.length;
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = 0; j < n - i - 1; j++) {
-                if (arr[j] > arr[j + 1]) {
-                    int temp = arr[j];
-                    arr[j] = arr[j + 1];
-                    arr[j + 1] = temp;
-
-                    Map<String, Object> step = new LinkedHashMap<>();
-                    step.put("step", steps.size() + 1);
-                    step.put("swapped", new int[]{j, j + 1});
-                    step.put("array", Arrays.copyOf(arr, arr.length));
-                    steps.add(step);
-                }
-            }
+            hash = sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Hash algorithm not available: " + algorithm, e);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("original", request.getArray());
+        result.put("algorithm", algorithm);
+        result.put("input", input);
+        result.put("hash", hash);
+        return result;
+    }
+
+    public Map<String, Object> bubbleSort(SortRequest request) {
+        List<Integer> original = request.getArray() != null
+                ? new ArrayList<>(request.getArray())
+                : Collections.emptyList();
+
+        List<Integer> arr = new ArrayList<>(original);
+        List<List<Integer>> steps = new ArrayList<>();
+        steps.add(new ArrayList<>(arr));
+
+        int n = arr.size();
+        for (int i = 0; i < n - 1; i++) {
+            boolean swapped = false;
+            for (int j = 0; j < n - 1 - i; j++) {
+                if (arr.get(j) > arr.get(j + 1)) {
+                    int temp = arr.get(j);
+                    arr.set(j, arr.get(j + 1));
+                    arr.set(j + 1, temp);
+                    swapped = true;
+                    steps.add(new ArrayList<>(arr));
+                }
+            }
+            if (!swapped) break;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("original", original);
         result.put("sorted", arr);
         result.put("steps", steps);
         return result;
     }
-
-    public void logInvocation(String username, String apiPath) {
-        logRepository.save(new InvocationLog(username, apiPath, LocalDateTime.now()));
-    }
 }
 ```
 
-- [ ] **Step 2: 创建 AlgorithmController.java**
+- [ ] **Step 4: 验证编译**
+
+Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
+Expected: BUILD SUCCESS
+
+---
+
+## Task 5: 后端 Controller 层 — 算法接口 + 埋点
+
+**Files:**
+- Create: `[testDj] src/main/java/com/example/demo/controller/AlgorithmController.java`
+
+**Interfaces:**
+- Consumes: `AlgorithmService`, `InvocationLogRepository`, `SecurityContextHolder`
+- Produces:
+  - `GET /api/helloworld` → `{"message":"Hello World","timestamp":"..."}`
+  - `POST /api/hash` (body: `{"input":"text","algorithm":"SHA-256"}`) → `{"algorithm":"SHA-256","input":"text","hash":"..."}`
+  - `POST /api/bubblesort` (body: `{"array":[3,1,4,1,5]}`) → `{"original":[...],"sorted":[...],"steps":[...]}`
+
+- [ ] **Step 1: 创建 AlgorithmController.java**
 
 ```java
 package com.example.demo.controller;
 
 import com.example.demo.dto.HashRequest;
 import com.example.demo.dto.SortRequest;
+import com.example.demo.model.InvocationLog;
+import com.example.demo.repository.InvocationLogRepository;
 import com.example.demo.service.AlgorithmService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -800,135 +736,165 @@ import java.util.Map;
 public class AlgorithmController {
 
     private final AlgorithmService algorithmService;
+    private final InvocationLogRepository invocationLogRepository;
 
-    public AlgorithmController(AlgorithmService algorithmService) {
+    public AlgorithmController(AlgorithmService algorithmService,
+                               InvocationLogRepository invocationLogRepository) {
         this.algorithmService = algorithmService;
+        this.invocationLogRepository = invocationLogRepository;
     }
 
     @GetMapping("/helloworld")
-    public ResponseEntity<Map<String, Object>> helloWorld() {
-        String username = getCurrentUsername();
-        algorithmService.logInvocation(username, "/api/helloworld");
-        return ResponseEntity.ok(algorithmService.helloworld());
+    public ResponseEntity<Map<String, String>> helloWorld() {
+        logInvocation("/api/helloworld");
+        return ResponseEntity.ok(algorithmService.helloWorld());
     }
 
     @PostMapping("/hash")
     public ResponseEntity<Map<String, Object>> hash(@RequestBody HashRequest request) {
-        String username = getCurrentUsername();
-        algorithmService.logInvocation(username, "/api/hash");
-        return ResponseEntity.ok(algorithmService.hash(request));
+        logInvocation("/api/hash");
+        return ResponseEntity.ok(algorithmService.computeHash(request));
     }
 
     @PostMapping("/bubblesort")
     public ResponseEntity<Map<String, Object>> bubbleSort(@RequestBody SortRequest request) {
-        String username = getCurrentUsername();
-        algorithmService.logInvocation(username, "/api/bubblesort");
+        logInvocation("/api/bubblesort");
         return ResponseEntity.ok(algorithmService.bubbleSort(request));
     }
 
-    private String getCurrentUsername() {
+    private void logInvocation(String api) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null ? auth.getName() : "anonymous";
+        String username = (auth != null && auth.getName() != null) ? auth.getName() : "anonymous";
+        InvocationLog log = new InvocationLog(username, api, LocalDateTime.now());
+        invocationLogRepository.save(log);
     }
 }
 ```
 
-- [ ] **Step 3: 验证 — 编译**
+- [ ] **Step 2: 验证编译**
 
 Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
 Expected: BUILD SUCCESS
 
 ---
 
-### Task 5: 后端 ExportService + ExportController
+## Task 6: 后端导出服务 — Excel 导出
 
 **Files:**
-- Create: `testDj-main/src/main/java/com/example/demo/service/ExportService.java`
-- Create: `testDj-main/src/main/java/com/example/demo/controller/ExportController.java`
+- Create: `[testDj] src/main/java/com/example/demo/service/ExportService.java`
+- Create: `[testDj] src/main/java/com/example/demo/controller/ExportController.java`
 
 **Interfaces:**
-- Consumes: `AlgorithmService` (获取各接口结果数据); `InvocationLogRepository` (获取埋点数据)
-- Produces: `ExportService` — `byte[] export(String tab)` 返回 .xlsx 字节数组
-- Produces: `ExportController` — GET `/api/export?tab=helloworld|hash|bubblesort`
+- Consumes: `AlgorithmService`
+- Produces:
+  - `GET /api/export?tab=helloworld|hash|bubblesort` → `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` 文件流
 
 - [ ] **Step 1: 创建 ExportService.java**
 
 ```java
 package com.example.demo.service;
 
-import com.example.demo.model.InvocationLog;
-import com.example.demo.repository.InvocationLogRepository;
+import com.example.demo.dto.HashRequest;
+import com.example.demo.dto.SortRequest;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
 
 @Service
 public class ExportService {
 
-    private final InvocationLogRepository logRepository;
+    private final AlgorithmService algorithmService;
 
-    public ExportService(InvocationLogRepository logRepository) {
-        this.logRepository = logRepository;
+    public ExportService(AlgorithmService algorithmService) {
+        this.algorithmService = algorithmService;
     }
 
-    public byte[] export(String tab) {
+    public byte[] exportTab(String tab) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet(tab);
-            Row header = sheet.createRow(0);
+            CellStyle headerStyle = createHeaderStyle(workbook);
 
             switch (tab.toLowerCase()) {
-                case "helloworld" -> {
-                    header.createCell(0).setCellValue("Message");
-                    header.createCell(1).setCellValue("Timestamp");
-                    Row row = sheet.createRow(1);
-                    row.createCell(0).setCellValue("Hello World");
-                    row.createCell(1).setCellValue(java.time.LocalDateTime.now().toString());
-                }
-                case "hash" -> {
-                    header.createCell(0).setCellValue("Algorithm");
-                    header.createCell(1).setCellValue("Description");
-                    Row r1 = sheet.createRow(1);
-                    r1.createCell(0).setCellValue("MD5");
-                    r1.createCell(1).setCellValue("128-bit hash");
-                    Row r2 = sheet.createRow(2);
-                    r2.createCell(0).setCellValue("SHA-1");
-                    r2.createCell(1).setCellValue("160-bit hash");
-                    Row r3 = sheet.createRow(3);
-                    r3.createCell(0).setCellValue("SHA-256");
-                    r3.createCell(1).setCellValue("256-bit hash");
-                }
-                case "bubblesort" -> {
-                    header.createCell(0).setCellValue("Example Input");
-                    header.createCell(1).setCellValue("Sorted Output");
-                    Row row = sheet.createRow(1);
-                    row.createCell(0).setCellValue("[3, 1, 4, 1, 5]");
-                    row.createCell(1).setCellValue("[1, 1, 3, 4, 5]");
-                }
-                default -> {
-                    header.createCell(0).setCellValue("API");
-                    header.createCell(1).setCellValue("Call Count");
-                    List<InvocationLog> logs = logRepository.findAll();
-                    long hw = logs.stream().filter(l -> l.getApiPath().equals("/api/helloworld")).count();
-                    long ha = logs.stream().filter(l -> l.getApiPath().equals("/api/hash")).count();
-                    long bs = logs.stream().filter(l -> l.getApiPath().equals("/api/bubblesort")).count();
-                    int r = 1;
-                    for (String[] entry : new String[][]{{"helloworld", String.valueOf(hw)}, {"hash", String.valueOf(ha)}, {"bubblesort", String.valueOf(bs)}}) {
-                        Row row = sheet.createRow(r++);
-                        row.createCell(0).setCellValue(entry[0]);
-                        row.createCell(1).setCellValue(entry[1]);
-                    }
-                }
+                case "helloworld" -> fillHelloWorld(sheet, headerStyle);
+                case "hash" -> fillHash(sheet, headerStyle);
+                case "bubblesort" -> fillBubbleSort(sheet, headerStyle);
+                default -> throw new IllegalArgumentException("Unknown tab: " + tab);
             }
 
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             workbook.write(bos);
             return bos.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Excel export failed", e);
         }
+    }
+
+    private void fillHelloWorld(Sheet sheet, CellStyle headerStyle) {
+        Row header = sheet.createRow(0);
+        createCell(header, 0, "Message", headerStyle);
+        createCell(header, 1, "Timestamp", headerStyle);
+
+        Map<String, String> result = algorithmService.helloWorld();
+        Row row = sheet.createRow(1);
+        row.createCell(0).setCellValue(result.get("message"));
+        row.createCell(1).setCellValue(result.get("timestamp"));
+
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+    }
+
+    private void fillHash(Sheet sheet, CellStyle headerStyle) {
+        Row header = sheet.createRow(0);
+        createCell(header, 0, "Algorithm", headerStyle);
+        createCell(header, 1, "Input", headerStyle);
+        createCell(header, 2, "Hash", headerStyle);
+
+        String[] algorithms = {"MD5", "SHA-1", "SHA-256"};
+        String sampleInput = "Hello World";
+        int rowIdx = 1;
+        for (String algo : algorithms) {
+            Map<String, Object> result = algorithmService.computeHash(new HashRequest(sampleInput, algo));
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue((String) result.get("algorithm"));
+            row.createCell(1).setCellValue((String) result.get("input"));
+            row.createCell(2).setCellValue((String) result.get("hash"));
+        }
+
+        for (int i = 0; i < 3; i++) sheet.autoSizeColumn(i);
+    }
+
+    private void fillBubbleSort(Sheet sheet, CellStyle headerStyle) {
+        Row header = sheet.createRow(0);
+        createCell(header, 0, "Original", headerStyle);
+        createCell(header, 1, "Sorted", headerStyle);
+        createCell(header, 2, "Total Steps", headerStyle);
+
+        Map<String, Object> result = algorithmService.bubbleSort(
+                new SortRequest(Arrays.asList(3, 1, 4, 1, 5)));
+        Row row = sheet.createRow(1);
+        row.createCell(0).setCellValue(result.get("original").toString());
+        row.createCell(1).setCellValue(result.get("sorted").toString());
+        @SuppressWarnings("unchecked")
+        List<List<Integer>> steps = (List<List<Integer>>) result.get("steps");
+        row.createCell(2).setCellValue(steps.size() - 1);
+
+        for (int i = 0; i < 3; i++) sheet.autoSizeColumn(i);
+    }
+
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        return style;
+    }
+
+    private void createCell(Row row, int col, String value, CellStyle style) {
+        Cell cell = row.createCell(col);
+        cell.setCellValue(value);
+        cell.setCellStyle(style);
     }
 }
 ```
@@ -944,6 +910,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api")
 public class ExportController {
@@ -955,45 +923,43 @@ public class ExportController {
     }
 
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(@RequestParam(defaultValue = "helloworld") String tab) {
-        byte[] data = exportService.export(tab);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDispositionFormData("attachment", tab + ".xlsx");
-        return ResponseEntity.ok().headers(headers).body(data);
+    public ResponseEntity<byte[]> export(@RequestParam(defaultValue = "helloworld") String tab)
+            throws IOException {
+        byte[] data = exportService.exportTab(tab);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + tab + "_export.xlsx")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(data);
     }
 }
 ```
 
-- [ ] **Step 3: 验证 — 编译**
+- [ ] **Step 3: 验证编译**
 
 Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
 Expected: BUILD SUCCESS
 
 ---
 
-### Task 6: 后端 StatsService + StatsController
+## Task 7: 后端统计服务 — 埋点查询（多维度）
 
 **Files:**
-- Create: `testDj-main/src/main/java/com/example/demo/service/StatsService.java`
-- Create: `testDj-main/src/main/java/com/example/demo/controller/StatsController.java`
+- Create: `[testDj] src/main/java/com/example/demo/service/StatsService.java`
+- Create: `[testDj] src/main/java/com/example/demo/controller/StatsController.java`
 
 **Interfaces:**
-- Consumes: `InvocationLogRepository`, `UserProfileRepository`
-- Produces: `StatsService` — `StatsResponse getStats(String dimension)` 按维度聚合调用次数
-- Produces: `StatsController` — GET `/api/stats?dimension=type|level|department&chart=line|pie|bar`
+- Consumes: `InvocationLogRepository`
+- Produces:
+  - `GET /api/stats?dimension=type|level|department|api&chart=line|pie|bar` → `{"dimension":"type","data":[{"key":"正式员工","count":42},...]}`
 
 - [ ] **Step 1: 创建 StatsService.java**
 
 ```java
 package com.example.demo.service;
 
-import com.example.demo.dto.StatsResponse;
-import com.example.demo.model.InvocationLog;
-import com.example.demo.model.UserProfile;
 import com.example.demo.repository.InvocationLogRepository;
-import com.example.demo.repository.UserProfileRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -1002,37 +968,36 @@ import java.util.stream.Collectors;
 @Service
 public class StatsService {
 
-    private final InvocationLogRepository logRepository;
-    private final UserProfileRepository profileRepository;
+    private final InvocationLogRepository repository;
 
-    public StatsService(InvocationLogRepository logRepository, UserProfileRepository profileRepository) {
-        this.logRepository = logRepository;
-        this.profileRepository = profileRepository;
+    public StatsService(InvocationLogRepository repository) {
+        this.repository = repository;
     }
 
-    public StatsResponse getStats(String dimension) {
-        List<InvocationLog> logs = logRepository.findAll();
-        List<UserProfile> profiles = profileRepository.findAll();
-        Map<String, UserProfile> profileMap = profiles.stream()
-                .collect(Collectors.toMap(UserProfile::getUsername, p -> p));
-
-        Map<String, Long> aggregated = new LinkedHashMap<>();
-
-        for (InvocationLog log : logs) {
-            UserProfile profile = profileMap.get(log.getUsername());
-            String key = switch (dimension != null ? dimension.toLowerCase() : "type") {
-                case "level" -> profile != null ? profile.getLevel() : "unknown";
-                case "department" -> profile != null ? profile.getDepartment() : "unknown";
-                default -> profile != null ? profile.getUserType() : "unknown";
-            };
-            aggregated.merge(key, 1L, Long::sum);
+    public Map<String, Object> getStats(String dimension) {
+        List<Object[]> raw;
+        switch (dimension.toLowerCase()) {
+            case "type"       -> raw = repository.countGroupByUserType();
+            case "level"      -> raw = repository.countGroupByUserLevel();
+            case "department" -> raw = repository.countGroupByUserDepartment();
+            case "api"        -> raw = repository.countGroupByApi();
+            default -> throw new IllegalArgumentException(
+                    "Unknown dimension: " + dimension + ". Allowed: type, level, department, api");
         }
 
-        List<StatsResponse.KeyValue> data = aggregated.entrySet().stream()
-                .map(e -> new StatsResponse.KeyValue(e.getKey(), e.getValue()))
+        List<Map<String, Object>> data = raw.stream()
+                .map(row -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("key", row[0]);
+                    item.put("count", row[1]);
+                    return item;
+                })
                 .collect(Collectors.toList());
 
-        return new StatsResponse(dimension != null ? dimension : "type", data);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dimension", dimension);
+        result.put("data", data);
+        return result;
     }
 }
 ```
@@ -1042,10 +1007,11 @@ public class StatsService {
 ```java
 package com.example.demo.controller;
 
-import com.example.demo.dto.StatsResponse;
 import com.example.demo.service.StatsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -1058,57 +1024,52 @@ public class StatsController {
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<StatsResponse> stats(
+    public ResponseEntity<Map<String, Object>> getStats(
             @RequestParam(defaultValue = "type") String dimension,
-            @RequestParam(defaultValue = "line") String chart) {
+            @RequestParam(defaultValue = "bar") String chart) {
         return ResponseEntity.ok(statsService.getStats(dimension));
     }
 }
 ```
 
-- [ ] **Step 3: 验证 — 编译**
+- [ ] **Step 3: 验证编译**
 
 Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDj-main && mvn compile -q 2>&1`
 Expected: BUILD SUCCESS
 
 ---
 
-### Task 7: 前端项目骨架 — package.json + 入口文件
+## Task 8: 前端项目骨架 — React + 依赖 + 入口
 
 **Files:**
-- Create: `testDJnew-main/package.json`
-- Create: `testDJnew-main/public/index.html`
-- Create: `testDJnew-main/src/index.jsx`
-- Create: `testDJnew-main/src/utils/auth.js`
-- Create: `testDJnew-main/src/services/api.js`
+- Create: `[testDJnew] package.json`
+- Create: `[testDJnew] public/index.html`
+- Create: `[testDJnew] src/index.jsx`
+- Create: `[testDJnew] src/App.jsx`
 
 **Interfaces:**
-- Produces: `auth.js` — `getToken()`, `setToken(token)`, `getUsername()`
-- Produces: `api.js` — `helloWorld()`, `hash(input, algorithm)`, `bubbleSort(array)`, `exportExcel(tab)`, `getStats(dimension, chart)`, axios 实例 baseURL `/api`
+- Produces: React 18 SPA 入口，react-tabs 页面框架，路由占位
 
 - [ ] **Step 1: 创建 package.json**
 
 ```json
 {
-  "name": "testdjnew",
+  "name": "testdjnew-frontend",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.23.0",
-    "axios": "^1.7.0",
+    "axios": "^1.7.2",
     "echarts": "^5.5.0",
-    "echarts-for-react": "^3.0.2"
-  },
-  "devDependencies": {
-    "react-scripts": "5.0.1"
+    "echarts-for-react": "^3.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-scripts": "5.0.1",
+    "react-tabs": "^6.0.2"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build"
   },
-  "proxy": "http://localhost:8080",
   "browserslist": {
     "production": [">0.2%", "not dead", "not op_mini all"],
     "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
@@ -1124,7 +1085,7 @@ Expected: BUILD SUCCESS
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>算法演示平台</title>
+    <title>算法服务面板</title>
 </head>
 <body>
     <div id="root"></div>
@@ -1147,13 +1108,76 @@ root.render(
 );
 ```
 
-- [ ] **Step 4: 创建 src/utils/auth.js**
+- [ ] **Step 4: 创建 src/App.jsx**
+
+```jsx
+import React from 'react';
+import DashboardPage from './pages/DashboardPage';
+import ReportPage from './pages/ReportPage';
+
+function App() {
+    const [page, setPage] = React.useState('dashboard');
+
+    return (
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: 24, fontFamily: 'sans-serif' }}>
+            <nav style={{ marginBottom: 24, display: 'flex', gap: 16 }}>
+                <button onClick={() => setPage('dashboard')}
+                        style={navBtnStyle(page === 'dashboard')}>
+                    算法服务
+                </button>
+                <button onClick={() => setPage('report')}
+                        style={navBtnStyle(page === 'report')}>
+                    调用报表
+                </button>
+            </nav>
+
+            {page === 'dashboard' ? <DashboardPage /> : <ReportPage />}
+        </div>
+    );
+}
+
+function navBtnStyle(active) {
+    return {
+        padding: '8px 20px',
+        border: 'none',
+        borderRadius: 6,
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        background: active ? '#1677ff' : '#e8e8e8',
+        color: active ? '#fff' : '#333',
+    };
+}
+
+export default App;
+```
+
+- [ ] **Step 5: 安装依赖**
+
+Run: `cd /root/.agentix/agentic-dev/runs/DEV-966dcd0a-7905-11f1-9649-3b4281182f10-7aa717a8-9632-4f0d-b727-a17c31bc687f/worktree/testDJnew-main && npm install 2>&1 | tail -5`
+Expected: 无错误
+
+---
+
+## Task 9: 前端 API 服务层 + JWT 工具
+
+**Files:**
+- Create: `[testDJnew] src/services/api.js`
+- Create: `[testDJnew] src/utils/auth.js`
+
+**Interfaces:**
+- Consumes: —
+- Produces:
+  - `auth.js`: `getToken()`, `setToken(token)`, `getUsername()`, `generateMockToken(username)`
+  - `api.js`: `helloWorld()`, `computeHash(input, algorithm)`, `bubbleSort(array)`, `exportTab(tab)`, `getStats(dimension, chart)`
+
+- [ ] **Step 1: 创建 src/utils/auth.js**
 
 ```js
-const TOKEN_KEY = 'demo_jwt_token';
+const TOKEN_KEY = 'app_jwt_token';
+const USERNAME_KEY = 'app_username';
 
 export function getToken() {
-    return localStorage.getItem(TOKEN_KEY) || '';
+    return localStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token) {
@@ -1161,176 +1185,211 @@ export function setToken(token) {
 }
 
 export function getUsername() {
-    const token = getToken();
-    if (!token) return 'anonymous';
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload.sub || 'anonymous';
-    } catch {
-        return 'anonymous';
-    }
+    return localStorage.getItem(USERNAME_KEY) || 'anonymous';
+}
+
+export function setUsername(username) {
+    localStorage.setItem(USERNAME_KEY, username);
+}
+
+export function generateMockToken(username) {
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ sub: username, iat: Date.now() / 1000 }));
+    return `${header}.${payload}.mock-signature`;
 }
 ```
 
-- [ ] **Step 5: 创建 src/services/api.js**
+- [ ] **Step 2: 创建 src/services/api.js**
 
 ```js
 import axios from 'axios';
-import { getToken } from '../utils/auth';
+import { getToken, generateMockToken, setToken, setUsername } from '../utils/auth';
 
-const client = axios.create({
-    baseURL: '/api',
-    timeout: 10000,
-});
+const BASE_URL = 'http://localhost:8080/api';
+
+const client = axios.create({ baseURL: BASE_URL });
 
 client.interceptors.request.use((config) => {
-    const token = getToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    let token = getToken();
+    if (!token) {
+        const username = 'admin';
+        setUsername(username);
+        token = generateMockToken(username);
+        setToken(token);
     }
+    config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
 
 export async function helloWorld() {
-    const res = await client.get('/helloworld');
-    return res.data;
+    const { data } = await client.get('/helloworld');
+    return data;
 }
 
-export async function hash(input, algorithm) {
-    const res = await client.post('/hash', { input, algorithm });
-    return res.data;
+export async function computeHash(input, algorithm) {
+    const { data } = await client.post('/hash', { input, algorithm });
+    return data;
 }
 
 export async function bubbleSort(array) {
-    const res = await client.post('/bubblesort', { array });
-    return res.data;
+    const { data } = await client.post('/bubblesort', { array });
+    return data;
 }
 
-export async function exportExcel(tab) {
-    const res = await client.get('/export', {
+export async function exportTab(tab) {
+    const response = await client.get('/export', {
         params: { tab },
         responseType: 'blob',
     });
-    return res.data;
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${tab}_export.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
 }
 
-export async function getStats(dimension, chart) {
-    const res = await client.get('/stats', {
-        params: { dimension, chart },
-    });
-    return res.data;
+export async function getStats(dimension = 'type') {
+    const { data } = await client.get('/stats', { params: { dimension } });
+    return data;
 }
 ```
 
 ---
 
-### Task 8: 前端 Tab 组件 + ExportButton
+## Task 10: 前端 Tab 组件 — HelloWorld / Hash / BubbleSort
 
 **Files:**
-- Create: `testDJnew-main/src/components/HelloWorldTab.jsx`
-- Create: `testDJnew-main/src/components/HashTab.jsx`
-- Create: `testDJnew-main/src/components/BubbleSortTab.jsx`
-- Create: `testDJnew-main/src/components/ExportButton.jsx`
+- Create: `[testDJnew] src/components/HelloWorldTab.jsx`
+- Create: `[testDJnew] src/components/HashTab.jsx`
+- Create: `[testDJnew] src/components/BubbleSortTab.jsx`
+- Create: `[testDJnew] src/components/ExportButton.jsx`
 
 **Interfaces:**
-- Consumes: `api.js` functions (`helloWorld`, `hash`, `bubbleSort`, `exportExcel`)
-- Produces: 3 个 Tab 组件（各自独立请求 + 展示结果），1 个通用导出按钮
+- Consumes: `api.js` (helloWorld, computeHash, bubbleSort, exportTab)
+- Produces:
+  - `HelloWorldTab` — 展示 message + timestamp
+  - `HashTab` — 文本输入框 + 算法下拉选择 + 哈希结果展示
+  - `BubbleSortTab` — JSON 数组输入框 + 原始/排序/步骤展示
+  - `ExportButton` — prop: `tab`，点击触发 exportTab
 
 - [ ] **Step 1: 创建 HelloWorldTab.jsx**
 
 ```jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { helloWorld } from '../services/api';
 import ExportButton from './ExportButton';
 
 export default function HelloWorldTab() {
-    const [result, setResult] = useState(null);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    const fetchHello = async () => {
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const data = await helloWorld();
-            setResult(data);
-        } catch (err) {
-            setResult({ error: err.message });
+            const result = await helloWorld();
+            setData(result);
+        } catch (e) {
+            setData({ message: 'Error', timestamp: e.message });
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => { fetchData(); }, []);
+
     return (
-        <div style={{ padding: 20 }}>
-            <h3>HelloWorld 接口</h3>
-            <button onClick={fetchHello} disabled={loading}>
-                {loading ? '请求中...' : '调用 /helloworld'}
+        <div style={{ padding: 16 }}>
+            <button onClick={fetchData} disabled={loading}
+                    style={btnStyle}>
+                {loading ? '请求中...' : '调用 HelloWorld'}
             </button>
             <ExportButton tab="helloworld" />
-            {result && (
-                <pre style={{ background: '#f5f5f5', padding: 12, marginTop: 10 }}>
-                    {JSON.stringify(result, null, 2)}
+            {data && (
+                <pre style={preStyle}>
+                    {JSON.stringify(data, null, 2)}
                 </pre>
             )}
         </div>
     );
 }
+
+const btnStyle = {
+    padding: '8px 16px', marginRight: 12, cursor: 'pointer',
+    background: '#1677ff', color: '#fff', border: 'none', borderRadius: 6,
+};
+const preStyle = {
+    marginTop: 16, padding: 16, background: '#f5f5f5',
+    borderRadius: 8, overflow: 'auto',
+};
 ```
 
 - [ ] **Step 2: 创建 HashTab.jsx**
 
 ```jsx
 import React, { useState } from 'react';
-import { hash } from '../services/api';
+import { computeHash } from '../services/api';
 import ExportButton from './ExportButton';
 
+const ALGORITHMS = ['MD5', 'SHA-1', 'SHA-256'];
+
 export default function HashTab() {
-    const [input, setInput] = useState('');
+    const [input, setInput] = useState('Hello World');
     const [algorithm, setAlgorithm] = useState('SHA-256');
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    const fetchHash = async () => {
-        if (!input) return;
+    const handleCompute = async () => {
         setLoading(true);
         try {
-            const data = await hash(input, algorithm);
+            const data = await computeHash(input, algorithm);
             setResult(data);
-        } catch (err) {
-            setResult({ error: err.message });
+        } catch (e) {
+            setResult({ error: e.message });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div style={{ padding: 20 }}>
-            <h3>Hash 哈希计算</h3>
-            <div>
-                <input
-                    type="text"
-                    placeholder="输入文本"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    style={{ marginRight: 8, padding: 4 }}
-                />
-                <select value={algorithm} onChange={(e) => setAlgorithm(e.target.value)} style={{ padding: 4 }}>
-                    <option value="MD5">MD5</option>
-                    <option value="SHA-1">SHA-1</option>
-                    <option value="SHA-256">SHA-256</option>
-                </select>
-                <button onClick={fetchHash} disabled={loading} style={{ marginLeft: 8 }}>
-                    {loading ? '计算中...' : '计算哈希'}
-                </button>
+        <div style={{ padding: 16 }}>
+            <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>输入文本</label>
+                <input type="text" value={input} onChange={e => setInput(e.target.value)}
+                       style={inputStyle} />
             </div>
+            <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>算法</label>
+                <select value={algorithm} onChange={e => setAlgorithm(e.target.value)}
+                        style={inputStyle}>
+                    {ALGORITHMS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+            </div>
+            <button onClick={handleCompute} disabled={loading} style={btnStyle}>
+                {loading ? '计算中...' : '计算哈希'}
+            </button>
             <ExportButton tab="hash" />
             {result && (
-                <pre style={{ background: '#f5f5f5', padding: 12, marginTop: 10 }}>
-                    {JSON.stringify(result, null, 2)}
-                </pre>
+                <pre style={preStyle}>{JSON.stringify(result, null, 2)}</pre>
             )}
         </div>
     );
 }
+
+const btnStyle = {
+    padding: '8px 16px', marginRight: 12, cursor: 'pointer',
+    background: '#1677ff', color: '#fff', border: 'none', borderRadius: 6,
+};
+const inputStyle = {
+    width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9',
+    borderRadius: 6, fontSize: 14,
+};
+const preStyle = {
+    marginTop: 16, padding: 16, background: '#f5f5f5',
+    borderRadius: 8, overflow: 'auto',
+};
 ```
 
 - [ ] **Step 3: 创建 BubbleSortTab.jsx**
@@ -1341,60 +1400,75 @@ import { bubbleSort } from '../services/api';
 import ExportButton from './ExportButton';
 
 export default function BubbleSortTab() {
-    const [input, setInput] = useState('[3, 1, 4, 1, 5]');
+    const [input, setInput] = useState('[3,1,4,1,5]');
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const fetchSort = async () => {
+    const handleSort = async () => {
+        setError('');
         let array;
         try {
             array = JSON.parse(input);
+            if (!Array.isArray(array) || !array.every(n => typeof n === 'number')) {
+                setError('请输入合法的 JSON 整数数组，如 [3,1,4,1,5]');
+                return;
+            }
         } catch {
-            setResult({ error: '请输入合法的 JSON 数组，如 [3,1,4,1,5]' });
+            setError('JSON 格式错误，请检查输入');
             return;
         }
         setLoading(true);
         try {
             const data = await bubbleSort(array);
             setResult(data);
-        } catch (err) {
-            setResult({ error: err.message });
+        } catch (e) {
+            setError(e.message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div style={{ padding: 20 }}>
-            <h3>BubbleSort 冒泡排序</h3>
-            <div>
-                <input
-                    type="text"
-                    placeholder="输入 JSON 数组"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    style={{ marginRight: 8, padding: 4, width: 240 }}
-                />
-                <button onClick={fetchSort} disabled={loading}>
-                    {loading ? '排序中...' : '执行排序'}
-                </button>
+        <div style={{ padding: 16 }}>
+            <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 'bold' }}>
+                    输入整数数组（JSON 格式）
+                </label>
+                <input type="text" value={input} onChange={e => setInput(e.target.value)}
+                       style={inputStyle} />
             </div>
+            <button onClick={handleSort} disabled={loading} style={btnStyle}>
+                {loading ? '排序中...' : '执行冒泡排序'}
+            </button>
             <ExportButton tab="bubblesort" />
+            {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
             {result && (
-                <pre style={{ background: '#f5f5f5', padding: 12, marginTop: 10, maxHeight: 400, overflow: 'auto' }}>
-                    {JSON.stringify(result, null, 2)}
-                </pre>
+                <pre style={preStyle}>{JSON.stringify(result, null, 2)}</pre>
             )}
         </div>
     );
 }
+
+const btnStyle = {
+    padding: '8px 16px', marginRight: 12, cursor: 'pointer',
+    background: '#1677ff', color: '#fff', border: 'none', borderRadius: 6,
+};
+const inputStyle = {
+    width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9',
+    borderRadius: 6, fontSize: 14,
+};
+const preStyle = {
+    marginTop: 16, padding: 16, background: '#f5f5f5',
+    borderRadius: 8, overflow: 'auto', maxHeight: 400,
+};
 ```
 
 - [ ] **Step 4: 创建 ExportButton.jsx**
 
 ```jsx
 import React, { useState } from 'react';
-import { exportExcel } from '../services/api';
+import { exportTab } from '../services/api';
 
 export default function ExportButton({ tab }) {
     const [exporting, setExporting] = useState(false);
@@ -1402,25 +1476,21 @@ export default function ExportButton({ tab }) {
     const handleExport = async () => {
         setExporting(true);
         try {
-            const blob = await exportExcel(tab);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${tab}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (err) {
-            alert('导出失败: ' + err.message);
+            await exportTab(tab);
+        } catch (e) {
+            alert('导出失败: ' + e.message);
         } finally {
             setExporting(false);
         }
     };
 
     return (
-        <button onClick={handleExport} disabled={exporting} style={{ marginLeft: 12 }}>
-            {exporting ? '导出中...' : '导出 Excel'}
+        <button onClick={handleExport} disabled={exporting}
+                style={{
+                    padding: '8px 16px', cursor: 'pointer',
+                    background: '#52c41a', color: '#fff', border: 'none', borderRadius: 6,
+                }}>
+            {exporting ? '导出中...' : '📥 导出 Excel'}
         </button>
     );
 }
@@ -1428,114 +1498,156 @@ export default function ExportButton({ tab }) {
 
 ---
 
-### Task 9: 前端图表组件 + DimensionSelector
+## Task 11: 前端 DashboardPage — 三 Tab 集成
 
 **Files:**
-- Create: `testDJnew-main/src/components/LineChart.jsx`
-- Create: `testDJnew-main/src/components/PieChart.jsx`
-- Create: `testDJnew-main/src/components/BarChart.jsx`
-- Create: `testDJnew-main/src/components/DimensionSelector.jsx`
+- Create: `[testDJnew] src/pages/DashboardPage.jsx`
 
 **Interfaces:**
-- Consumes: `getStats(dimension, chart)` from `api.js`
-- Produces: 3 个 ECharts 图表组件（接收 `dimension` prop，内部请求数据），1 个维度选择器
+- Consumes: `HelloWorldTab`, `HashTab`, `BubbleSortTab`
+- Produces: `DashboardPage` — 三 Tab 布局
+
+- [ ] **Step 1: 创建 DashboardPage.jsx**
+
+```jsx
+import React from 'react';
+import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
+import 'react-tabs/style/react-tabs.css';
+import HelloWorldTab from '../components/HelloWorldTab';
+import HashTab from '../components/HashTab';
+import BubbleSortTab from '../components/BubbleSortTab';
+
+export default function DashboardPage() {
+    return (
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ marginTop: 0 }}>算法服务面板</h2>
+            <Tabs>
+                <TabList>
+                    <Tab>Hello World</Tab>
+                    <Tab>Hash 哈希</Tab>
+                    <Tab>Bubble Sort 冒泡排序</Tab>
+                </TabList>
+                <TabPanel>
+                    <HelloWorldTab />
+                </TabPanel>
+                <TabPanel>
+                    <HashTab />
+                </TabPanel>
+                <TabPanel>
+                    <BubbleSortTab />
+                </TabPanel>
+            </Tabs>
+        </div>
+    );
+}
+```
+
+---
+
+## Task 12: 前端图表组件 — LineChart / PieChart / BarChart
+
+**Files:**
+- Create: `[testDJnew] src/components/LineChart.jsx`
+- Create: `[testDJnew] src/components/PieChart.jsx`
+- Create: `[testDJnew] src/components/BarChart.jsx`
+- Create: `[testDJnew] src/components/DimensionSelector.jsx`
+
+**Interfaces:**
+- Consumes: `echarts-for-react`
+- Produces:
+  - `LineChart({ data })` — 折线图
+  - `PieChart({ data })` — 饼图
+  - `BarChart({ data })` — 柱状图
+  - `DimensionSelector({ value, onChange })` — 维度下拉
 
 - [ ] **Step 1: 创建 LineChart.jsx**
 
 ```jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getStats } from '../services/api';
 
-export default function LineChart({ dimension }) {
-    const [option, setOption] = useState(null);
+export default function LineChart({ data = [] }) {
+    const option = {
+        title: { text: '调用次数趋势（折线图）', left: 'center' },
+        tooltip: { trigger: 'axis' },
+        xAxis: {
+            type: 'category',
+            data: data.map(d => d.key),
+            axisLabel: { rotate: 30 },
+        },
+        yAxis: { type: 'value', name: '调用次数' },
+        series: [{
+            type: 'line',
+            data: data.map(d => d.count),
+            smooth: true,
+            itemStyle: { color: '#1677ff' },
+            areaStyle: { color: 'rgba(22,119,255,0.1)' },
+        }],
+    };
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const stats = await getStats(dimension, 'line');
-                setOption({
-                    title: { text: `调用次数折线图 - ${dimension}` },
-                    xAxis: { type: 'category', data: stats.data.map((d) => d.key) },
-                    yAxis: { type: 'value' },
-                    series: [{ data: stats.data.map((d) => d.count), type: 'line', smooth: true }],
-                    tooltip: { trigger: 'axis' },
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        })();
-    }, [dimension]);
-
-    if (!option) return <div>加载中...</div>;
-    return <ReactECharts option={option} style={{ height: 350 }} />;
+    return <ReactECharts option={option} style={{ height: 400 }} />;
 }
 ```
 
 - [ ] **Step 2: 创建 PieChart.jsx**
 
 ```jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getStats } from '../services/api';
 
-export default function PieChart({ dimension }) {
-    const [option, setOption] = useState(null);
+export default function PieChart({ data = [] }) {
+    const option = {
+        title: { text: '调用占比（饼图）', left: 'center' },
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            data: data.map(d => ({ name: d.key, value: d.count })),
+            emphasis: {
+                itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' },
+            },
+            label: { formatter: '{b}: {d}%' },
+        }],
+    };
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const stats = await getStats(dimension, 'pie');
-                setOption({
-                    title: { text: `调用次数饼图 - ${dimension}` },
-                    tooltip: { trigger: 'item' },
-                    series: [{
-                        type: 'pie',
-                        radius: '60%',
-                        data: stats.data.map((d) => ({ name: d.key, value: d.count })),
-                        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
-                    }],
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        })();
-    }, [dimension]);
-
-    if (!option) return <div>加载中...</div>;
-    return <ReactECharts option={option} style={{ height: 350 }} />;
+    return <ReactECharts option={option} style={{ height: 400 }} />;
 }
 ```
 
 - [ ] **Step 3: 创建 BarChart.jsx**
 
 ```jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getStats } from '../services/api';
 
-export default function BarChart({ dimension }) {
-    const [option, setOption] = useState(null);
+export default function BarChart({ data = [] }) {
+    const option = {
+        title: { text: '调用次数分布（柱状图）', left: 'center' },
+        tooltip: { trigger: 'axis' },
+        xAxis: {
+            type: 'category',
+            data: data.map(d => d.key),
+            axisLabel: { rotate: 30 },
+        },
+        yAxis: { type: 'value', name: '调用次数' },
+        series: [{
+            type: 'bar',
+            data: data.map(d => d.count),
+            itemStyle: {
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: '#1677ff' },
+                        { offset: 1, color: '#69b1ff' },
+                    ],
+                },
+                borderRadius: [6, 6, 0, 0],
+            },
+        }],
+    };
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const stats = await getStats(dimension, 'bar');
-                setOption({
-                    title: { text: `调用次数柱状图 - ${dimension}` },
-                    xAxis: { type: 'category', data: stats.data.map((d) => d.key) },
-                    yAxis: { type: 'value' },
-                    series: [{ data: stats.data.map((d) => d.count), type: 'bar' }],
-                    tooltip: { trigger: 'axis' },
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        })();
-    }, [dimension]);
-
-    if (!option) return <div>加载中...</div>;
-    return <ReactECharts option={option} style={{ height: 350 }} />;
+    return <ReactECharts option={option} style={{ height: 400 }} />;
 }
 ```
 
@@ -1544,25 +1656,21 @@ export default function BarChart({ dimension }) {
 ```jsx
 import React from 'react';
 
-export default function DimensionSelector({ dimension, setDimension, chart, setChart }) {
+const DIMENSIONS = [
+    { value: 'type', label: '人员类型' },
+    { value: 'level', label: '人员层级' },
+    { value: 'department', label: '人员部门' },
+    { value: 'api', label: '接口' },
+];
+
+export default function DimensionSelector({ value, onChange }) {
     return (
-        <div style={{ padding: '10px 20px', display: 'flex', gap: 16, alignItems: 'center' }}>
-            <label>
-                维度：
-                <select value={dimension} onChange={(e) => setDimension(e.target.value)}>
-                    <option value="type">人员类型</option>
-                    <option value="level">人员层级</option>
-                    <option value="department">人员部门</option>
-                </select>
-            </label>
-            <label>
-                图表类型：
-                <select value={chart} onChange={(e) => setChart(e.target.value)}>
-                    <option value="line">折线图</option>
-                    <option value="pie">饼图</option>
-                    <option value="bar">柱状图</option>
-                </select>
-            </label>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontWeight: 'bold' }}>分析维度：</span>
+            <select value={value} onChange={e => onChange(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14 }}>
+                {DIMENSIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
         </div>
     );
 }
@@ -1570,65 +1678,20 @@ export default function DimensionSelector({ dimension, setDimension, chart, setC
 
 ---
 
-### Task 10: 前端页面组装 — DashboardPage + ReportPage + App
+## Task 13: 前端 ReportPage — 报表页面集成
 
 **Files:**
-- Create: `testDJnew-main/src/pages/DashboardPage.jsx`
-- Create: `testDJnew-main/src/pages/ReportPage.jsx`
-- Create: `testDJnew-main/src/App.jsx`
+- Create: `[testDJnew] src/pages/ReportPage.jsx`
 
 **Interfaces:**
-- Consumes: All tab components, ExportButton, chart components, DimensionSelector
-- Produces: `DashboardPage` (3 Tab 切换), `ReportPage` (维度选择 + 图表), `App` (路由 / 和 /report)
+- Consumes: `LineChart`, `PieChart`, `BarChart`, `DimensionSelector`, `getStats`
+- Produces: `ReportPage` — 维度选择 + 三种图表展示
 
-- [ ] **Step 1: 创建 DashboardPage.jsx**
-
-```jsx
-import React, { useState } from 'react';
-import HelloWorldTab from '../components/HelloWorldTab';
-import HashTab from '../components/HashTab';
-import BubbleSortTab from '../components/BubbleSortTab';
-
-const TABS = [
-    { key: 'helloworld', label: 'HelloWorld', component: HelloWorldTab },
-    { key: 'hash', label: 'Hash 哈希', component: HashTab },
-    { key: 'bubblesort', label: 'BubbleSort 排序', component: BubbleSortTab },
-];
-
-export default function DashboardPage() {
-    const [active, setActive] = useState('helloworld');
-    const ActiveComponent = TABS.find((t) => t.key === active).component;
-
-    return (
-        <div>
-            <div style={{ display: 'flex', borderBottom: '2px solid #ddd', marginBottom: 0 }}>
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActive(tab.key)}
-                        style={{
-                            padding: '10px 20px',
-                            border: 'none',
-                            background: active === tab.key ? '#1890ff' : '#f0f0f0',
-                            color: active === tab.key ? '#fff' : '#333',
-                            cursor: 'pointer',
-                            fontWeight: active === tab.key ? 'bold' : 'normal',
-                        }}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-            <ActiveComponent />
-        </div>
-    );
-}
-```
-
-- [ ] **Step 2: 创建 ReportPage.jsx**
+- [ ] **Step 1: 创建 ReportPage.jsx**
 
 ```jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getStats } from '../services/api';
 import DimensionSelector from '../components/DimensionSelector';
 import LineChart from '../components/LineChart';
 import PieChart from '../components/PieChart';
@@ -1636,116 +1699,80 @@ import BarChart from '../components/BarChart';
 
 export default function ReportPage() {
     const [dimension, setDimension] = useState('type');
-    const [chart, setChart] = useState('line');
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const renderChart = () => {
-        switch (chart) {
-            case 'pie': return <PieChart dimension={dimension} />;
-            case 'bar': return <BarChart dimension={dimension} />;
-            default: return <LineChart dimension={dimension} />;
+    const fetchStats = useCallback(async () => {
+        setLoading(true);
+        try {
+            const result = await getStats(dimension);
+            setData(result.data || []);
+        } catch (e) {
+            console.error('Failed to fetch stats:', e);
+            setData([]);
+        } finally {
+            setLoading(false);
         }
-    };
+    }, [dimension]);
+
+    useEffect(() => { fetchStats(); }, [fetchStats]);
 
     return (
-        <div>
-            <h2 style={{ padding: '0 20px' }}>调用情况报表</h2>
-            <DimensionSelector
-                dimension={dimension}
-                setDimension={setDimension}
-                chart={chart}
-                setChart={setChart}
-            />
-            <div style={{ padding: '0 20px' }}>
-                {renderChart()}
-            </div>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ marginTop: 0 }}>调用情况报表</h2>
+            <DimensionSelector value={dimension} onChange={setDimension} />
+            {loading ? (
+                <p>加载中...</p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    <div style={{ background: '#fafafa', borderRadius: 8, padding: 16 }}>
+                        <LineChart data={data} />
+                    </div>
+                    <div style={{ background: '#fafafa', borderRadius: 8, padding: 16 }}>
+                        <PieChart data={data} />
+                    </div>
+                    <div style={{ background: '#fafafa', borderRadius: 8, padding: 16 }}>
+                        <BarChart data={data} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 ```
 
-- [ ] **Step 3: 创建 App.jsx**
+---
 
-```jsx
-import React from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import DashboardPage from './pages/DashboardPage';
-import ReportPage from './pages/ReportPage';
+## 仓间对齐点检查清单
 
-function Nav() {
-    const location = useLocation();
-    const isActive = (path) => location.pathname === path
-        ? { background: '#1890ff', color: '#fff' }
-        : { background: '#f0f0f0', color: '#333' };
-
-    return (
-        <nav style={{ display: 'flex', gap: 8, padding: '12px 20px', background: '#fff', borderBottom: '1px solid #eee' }}>
-            <Link to="/" style={{ padding: '8px 16px', textDecoration: 'none', borderRadius: 4, ...isActive('/') }}>
-                算法演示
-            </Link>
-            <Link to="/report" style={{ padding: '8px 16px', textDecoration: 'none', borderRadius: 4, ...isActive('/report') }}>
-                调用报表
-            </Link>
-        </nav>
-    );
-}
-
-export default function App() {
-    return (
-        <BrowserRouter>
-            <Nav />
-            <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/report" element={<ReportPage />} />
-            </Routes>
-        </BrowserRouter>
-    );
-}
-```
+| # | 对齐项 | 后端 (testDj) | 前端 (testDJnew) | 状态 |
+|---|--------|---------------|------------------|------|
+| 1 | `/api/helloworld` GET | `AlgorithmController.helloWorld()` → `{"message","timestamp"}` | `api.helloWorld()` → 展示 JSON | ✅ |
+| 2 | `/api/hash` POST | `AlgorithmController.hash()` body: `{"input","algorithm"}` → `{"algorithm","input","hash"}` | `api.computeHash(input, algo)` | ✅ |
+| 3 | `/api/bubblesort` POST | `AlgorithmController.bubbleSort()` body: `{"array":[...]}` → `{"original","sorted","steps"}` | `api.bubbleSort(array)` | ✅ |
+| 4 | `/api/export?tab=` GET | `ExportController.export()` → `.xlsx` stream | `api.exportTab(tab)` → blob download | ✅ |
+| 5 | `/api/stats?dimension=&chart=` GET | `StatsController.getStats()` → `{"dimension","data":[{"key","count"}]}` | `api.getStats(dimension)` → 图表数据 | ✅ |
+| 6 | JWT Header | `Authorization: Bearer <token>` 解析 username | `auth.js` 自动生成 mock token | ✅ |
+| 7 | CORS | `WebConfig` 允许 localhost:3000 | axios baseURL localhost:8080 | ✅ |
+| 8 | 埋点 | 每次调用写入 invocation_log | N/A（前端不感知） | ✅ |
 
 ---
 
-## Self-Review
+## 自检 Review
 
-### 1. Spec coverage
+### 1. Spec 覆盖
+- ✅ 三个接口 helloworld / hash / bubblesort → Task 4 + Task 5
+- ✅ 前端三 Tab 页面 → Task 10 + Task 11
+- ✅ 导出按钮 + 后台导出接口 → Task 6 + Task 10 (ExportButton)
+- ✅ 埋点获取调用次数和调用人 → Task 5 (logInvocation) + Task 7
+- ✅ 前端可视化报表（维度 + 三种图表）→ Task 12 + Task 13
 
-| 需求 | 覆盖任务 |
-|------|---------|
-| HelloWorld 接口 | Task 4 (AlgorithmService + AlgorithmController) |
-| Hash 接口 (MD5/SHA-1/SHA-256) | Task 4 (AlgorithmService.hash) |
-| BubbleSort 接口 | Task 4 (AlgorithmService.bubbleSort) |
-| 前端 3 Tab 页面 | Task 8 (Tab 组件) + Task 10 (DashboardPage) |
-| 导出按钮 + 导出接口 | Task 5 (ExportService/Controller) + Task 8 (ExportButton) |
-| 埋点（调用人+次数） | Task 4 (AlgorithmService.logInvocation) + Task 3 (InvocationLog) |
-| 前端可视化报表 | Task 9 (图表组件) + Task 10 (ReportPage) |
-| 维度拆分（人员类型/层级/部门） | Task 6 (StatsService) + Task 9 (DimensionSelector) |
-| 折线图/饼图/柱状图 | Task 9 (LineChart/PieChart/BarChart) |
-| JWT 身份识别 | Task 2 (JwtTokenProvider + JwtTokenFilter) |
-| user_profile 表 | Task 3 (UserProfile + data.sql) |
+### 2. Placeholder 扫描
+- ✅ 无 TBD / TODO / "implement later" 占位符
+- ✅ 所有步骤包含实际代码或命令
 
-### 2. Placeholder scan
-
-✅ 无 TBD/TODO/implement later
-✅ 所有代码步骤均包含完整代码
-✅ 无 "add appropriate error handling" 占位描述
-
-### 3. Type consistency
-
-✅ `HashRequest` (input: String, algorithm: String) — 前后一致
-✅ `SortRequest` (array: int[]) — 前后一致
-✅ `StatsResponse` (dimension: String, data: List<KeyValue>) — 前后一致
-✅ `api.js` 函数签名与后端 Controller 对齐
-✅ `DimensionSelector` props 与 ReportPage 使用一致
-
----
-
-## 仓间对齐点检查
-
-| 对齐点 | 后端 (testDj) | 前端 (testDJnew) | 状态 |
-|--------|-------------|-----------------|------|
-| GET /api/helloworld → `{message, timestamp}` | `AlgorithmController.helloWorld()` | `api.helloWorld()` → `HelloWorldTab` | ✅ |
-| POST /api/hash ← `{input, algorithm}` → `{algorithm, input, hash}` | `AlgorithmController.hash()` | `api.hash()` → `HashTab` | ✅ |
-| POST /api/bubblesort ← `{array}` → `{original, sorted, steps}` | `AlgorithmController.bubbleSort()` | `api.bubbleSort()` → `BubbleSortTab` | ✅ |
-| GET /api/export?tab= → `.xlsx` blob | `ExportController.export()` | `api.exportExcel()` → `ExportButton` | ✅ |
-| GET /api/stats?dimension=&chart= → `{dimension, data: [{key, count}]}` | `StatsController.stats()` | `api.getStats()` → `LineChart/PieChart/BarChart` | ✅ |
-| JWT Authorization header | `JwtTokenFilter` 解析 Bearer token | `api.js` interceptor 注入 | ✅ |
-| CORS origin | `WebConfig` 允许 localhost:3000 | `package.json` proxy → localhost:8080 | ✅ |
+### 3. 类型一致性
+- ✅ `HashRequest.input` / `HashRequest.algorithm` 前后端一致
+- ✅ `SortRequest.array` → `List<Integer>` 前后端一致
+- ✅ `StatsResponse` 结构 `{dimension, data: [{key, count}]}` 前后端一致
+- ✅ 导出 tab 参数值 `helloworld` / `hash` / `bubblesort` 前后端一致
