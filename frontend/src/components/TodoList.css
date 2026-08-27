@@ -1,0 +1,40 @@
+.todo-list {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.todo-list__empty {
+  padding: 32px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.todo-card {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.todo-card:last-child {
+  border-bottom: none;
+}
+
+.todo-card__name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.todo-card__description {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.todo-card__time {
+  font-size: 12px;
+  color: #999;
+}
