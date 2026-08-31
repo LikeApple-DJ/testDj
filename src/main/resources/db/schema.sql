@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS biz_todo (
     gmt_create   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     gmt_modified DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
     PRIMARY KEY pk_biz_todo (id),
-    UNIQUE KEY uk_biz_todo_tenant_name (tenant_id, name),
+    UNIQUE KEY uk_biz_todo_tenant_name (tenant_id, name, is_deleted),
     KEY idx_biz_todo_tenant_status (tenant_id, status),
     KEY idx_biz_todo_creator (creator)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='待办事项表';

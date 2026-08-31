@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 /**
@@ -35,8 +36,12 @@ public class TodoServiceImpl implements TodoService {
 
     private final TodoMapper todoMapper;
 
-    public TodoServiceImpl(TodoMapper todoMapper) {
+    /** 统一时区 Clock，避免系统默认时区导致多实例/JVM-DB 时区不一致 */
+    private final Clock clock;
+
+    public TodoServiceImpl(TodoMapper todoMapper, Clock clock) {
         this.todoMapper = todoMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -75,7 +80,7 @@ public class TodoServiceImpl implements TodoService {
         todo.setStatus(TodoStatus.PENDING.getCode());
         todo.setCreator(creator);
         todo.setDeleted(IsDeleted.NOT_DELETED.getCode());
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         todo.setGmtCreate(now);
         todo.setGmtModified(now);
 

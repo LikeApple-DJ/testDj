@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -47,8 +48,9 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.TODO_900;
         if (fieldError != null) {
             String field = fieldError.getField();
+            String constraintCode = fieldError.getCode();
             errorCode = switch (field) {
-                case "name" -> fieldError.getCode() != null && fieldError.getCode().contains("Size")
+                case "name" -> "Size".equals(constraintCode)
                         ? ErrorCode.TODO_002 : ErrorCode.TODO_001;
                 case "description" -> ErrorCode.TODO_003;
                 default -> ErrorCode.TODO_900;
@@ -64,7 +66,9 @@ public class GlobalExceptionHandler {
     /**
      * 处理唯一索引冲突（并发同名校验穿透）。
      *
-     * <p>对应 design.md §5.1.3.1 并发控制：捕获 DuplicateKeyException，返回 TODO_004。</p>
+     * <p>对应 design.md §5.1.3.1 并发控制：捕获 DuplicateKeyException，返回 TODO_004。
+     * 注意：create 路径在 TodoServiceImpl 中已捕获并转换为 BizException，
+     * 此处作为全局兜底处理器，防止其他写入路径遗漏处理。</p>
      *
      * @param ex 唯一键冲突异常
      * @return 错误响应
@@ -73,6 +77,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDuplicateKeyException(DuplicateKeyException ex) {
         logger.warn("唯一索引冲突, 返回 TODO_004: {}", ex.getMessage());
         return ResponseEntity.ok(ApiResponse.fail(ErrorCode.TODO_004));
+    }
+
+    /**
+     * 处理请求体反序列化失败。
+     *
+     * <p>对应 design.md §5.1.3.1 异常场景表：参数反序列化失败返回 TODO_900。
+     * JSON 格式错误或类型不匹配时触发，返回 HTTP 400 而非 500。</p>
+     *
+     * @param ex 反序列化异常
+     * @return 错误响应
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        logger.warn("请求体反序列化失败, 返回 TODO_900: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail(ErrorCode.TODO_900, "请求体格式错误"));
     }
 
     /**

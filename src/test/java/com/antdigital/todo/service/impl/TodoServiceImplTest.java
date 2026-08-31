@@ -15,13 +15,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 
+import java.time.Clock;
+import java.time.ZoneId;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,13 +47,14 @@ class TodoServiceImplTest {
     @Mock
     private TodoMapper todoMapper;
 
-    @InjectMocks
     private TodoServiceImpl todoService;
 
     @BeforeEach
     void setUp() {
         // 注入登录态上下文（模拟拦截器已完成登录校验）
         UserContext.set(TENANT_ID, CREATOR);
+        // 使用真实 Clock（Asia/Shanghai），与 TimeConfig Bean 一致
+        todoService = new TodoServiceImpl(todoMapper, Clock.system(ZoneId.of("Asia/Shanghai")));
     }
 
     @AfterEach
@@ -66,7 +71,7 @@ class TodoServiceImplTest {
         TodoCreateRequest request = buildRequest("完成周报", "本周五前提交部门周报");
         when(todoMapper.selectByTenantAndName(eq(TENANT_ID), eq("完成周报"))).thenReturn(null);
         // 模拟 insert 回写自增主键
-        when(todoMapper.insert(org.mockito.ArgumentMatchers.any(TodoDO.class))).thenAnswer(invocation -> {
+        when(todoMapper.insert(any(TodoDO.class))).thenAnswer(invocation -> {
             ((TodoDO) invocation.getArgument(0)).setId(GENERATED_ID);
             return 1;
         });
@@ -85,7 +90,7 @@ class TodoServiceImplTest {
         // Arrange
         TodoCreateRequest request = buildRequest("买咖啡", null);
         when(todoMapper.selectByTenantAndName(eq(TENANT_ID), eq("买咖啡"))).thenReturn(null);
-        when(todoMapper.insert(org.mockito.ArgumentMatchers.any(TodoDO.class))).thenAnswer(invocation -> {
+        when(todoMapper.insert(any(TodoDO.class))).thenAnswer(invocation -> {
             ((TodoDO) invocation.getArgument(0)).setId(GENERATED_ID);
             return 1;
         });
@@ -115,8 +120,8 @@ class TodoServiceImplTest {
                 });
 
         // 验证未执行查询和插入
-        verify(todoMapper, never()).selectByTenantAndName(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
-        verify(todoMapper, never()).insert(org.mockito.ArgumentMatchers.any(TodoDO.class));
+        verify(todoMapper, never()).selectByTenantAndName(anyString(), anyString());
+        verify(todoMapper, never()).insert(any(TodoDO.class));
     }
 
     // ==================== R01: 名称校验 ====================
@@ -132,7 +137,7 @@ class TodoServiceImplTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode()).isEqualTo(ErrorCode.TODO_001));
 
-        verify(todoMapper, never()).selectByTenantAndName(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        verify(todoMapper, never()).selectByTenantAndName(anyString(), anyString());
     }
 
     @Test
@@ -174,7 +179,7 @@ class TodoServiceImplTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode()).isEqualTo(ErrorCode.TODO_003));
 
-        verify(todoMapper, never()).selectByTenantAndName(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        verify(todoMapper, never()).selectByTenantAndName(anyString(), anyString());
     }
 
     // ==================== R03: 唯一性校验 ====================
@@ -196,7 +201,7 @@ class TodoServiceImplTest {
                 .satisfies(ex -> assertThat(((BizException) ex).getErrorCode()).isEqualTo(ErrorCode.TODO_004));
 
         // 验证未执行插入
-        verify(todoMapper, never()).insert(org.mockito.ArgumentMatchers.any(TodoDO.class));
+        verify(todoMapper, never()).insert(any(TodoDO.class));
     }
 
     @Test
@@ -205,7 +210,7 @@ class TodoServiceImplTest {
         // Arrange — 预校验通过，但 insert 时唯一索引冲突
         TodoCreateRequest request = buildRequest("完成周报", "描述");
         when(todoMapper.selectByTenantAndName(eq(TENANT_ID), eq("完成周报"))).thenReturn(null);
-        when(todoMapper.insert(org.mockito.ArgumentMatchers.any(TodoDO.class)))
+        when(todoMapper.insert(any(TodoDO.class)))
                 .thenThrow(new DuplicateKeyException("Duplicate entry"));
 
         // Act & Assert
@@ -222,7 +227,7 @@ class TodoServiceImplTest {
         // Arrange
         TodoCreateRequest request = buildRequest("完成周报", "本周五前提交部门周报");
         when(todoMapper.selectByTenantAndName(eq(TENANT_ID), eq("完成周报"))).thenReturn(null);
-        when(todoMapper.insert(org.mockito.ArgumentMatchers.any(TodoDO.class))).thenAnswer(invocation -> {
+        when(todoMapper.insert(any(TodoDO.class))).thenAnswer(invocation -> {
             ((TodoDO) invocation.getArgument(0)).setId(GENERATED_ID);
             return 1;
         });

@@ -8,8 +8,14 @@ spring:
     name: todo-app
   datasource:
     url: jdbc:mysql://localhost:3306/todo_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+
+# 变更三板斧：功能开关（可灰度/可应急），todo.feature.create.enabled=false 时短路 /api/todo/create
+todo:
+  feature:
+    create:
+      enabled: true
     driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     property-naming-strategy: SNAKE_CASE

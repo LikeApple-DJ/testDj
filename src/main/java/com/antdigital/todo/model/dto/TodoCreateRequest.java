@@ -18,7 +18,7 @@ public class TodoCreateRequest implements Serializable {
 
     /** 事项名称，长度1-128 */
     @NotBlank(message = "事项名称不能为空")
-    @Size(min = 1, max = 128, message = "事项名称长度必须在1-128字符之间")
+    @Size(max = 128, message = "事项名称长度不能超过128字符")
     private String name;
 
     /** 事项描述，长度0-1024 */
