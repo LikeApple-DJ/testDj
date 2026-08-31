@@ -1,15 +1,18 @@
 package com.antdigital.todo.common.exception;
 
+import com.antdigital.todo.common.constant.TodoConstants;
 import com.antdigital.todo.common.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -32,12 +35,6 @@ public class GlobalExceptionHandler {
     /** 系统异常提示 */
     private static final String SYS_ERROR_MSG = "系统异常，请稍后重试";
 
-    /** 参数校验错误码 */
-    private static final String PARAM_ERROR_CODE = "TODO_999";
-
-    /** 参数校验提示 */
-    private static final String PARAM_ERROR_MSG = "请求参数格式错误";
-
     /**
      * 处理业务异常
      *
@@ -59,12 +56,56 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidationException(MethodArgumentNotValidException e) {
+        List<FieldError> fieldErrors = e.getBindingResult().getFieldErrors();
+        FieldError firstError = fieldErrors.isEmpty() ? null : fieldErrors.get(0);
+        String errorCode = resolveValidationErrorCode(firstError);
         // 拼接所有字段校验错误信息
-        String detail = e.getBindingResult().getFieldErrors().stream()
+        String detail = fieldErrors.stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
-        logger.warn("参数校验失败, detail: {}", detail);
-        return ApiResponse.error(PARAM_ERROR_CODE, detail);
+        logger.warn("参数校验失败, code: {}, detail: {}", errorCode, detail);
+        return ApiResponse.error(errorCode, detail);
+    }
+
+    /**
+     * 处理请求体不可读异常（非JSON或格式错误）
+     *
+     * @param e 请求体不可读异常
+     * @return 标准错误响应
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        logger.warn("请求体格式错误, errorMessage: {}", e.getMessage());
+        return ApiResponse.error(TodoConstants.CODE_SYSTEM_ERROR, TodoConstants.MSG_REQUEST_BODY_INVALID);
+    }
+
+    /**
+     * 根据字段校验错误解析对应的业务错误码
+     * <p>
+     * 通过字段名与校验消息匹配 spec 定义的业务错误码：
+     * title 空 → TODO_001、title 超长 → TODO_002、description 超长 → TODO_003
+     * </p>
+     *
+     * @param fieldError 字段校验错误
+     * @return 业务错误码
+     */
+    private String resolveValidationErrorCode(FieldError fieldError) {
+        if (fieldError == null) {
+            return TodoConstants.CODE_SYSTEM_ERROR;
+        }
+        String field = fieldError.getField();
+        String message = fieldError.getDefaultMessage();
+        if ("title".equals(field) && TodoConstants.MSG_TITLE_EMPTY.equals(message)) {
+            return TodoConstants.CODE_TITLE_EMPTY;
+        }
+        if ("title".equals(field) && TodoConstants.MSG_TITLE_TOO_LONG.equals(message)) {
+            return TodoConstants.CODE_TITLE_TOO_LONG;
+        }
+        if ("description".equals(field) && TodoConstants.MSG_DESCRIPTION_TOO_LONG.equals(message)) {
+            return TodoConstants.CODE_DESCRIPTION_TOO_LONG;
+        }
+        return TodoConstants.CODE_SYSTEM_ERROR;
     }
 
     /**

@@ -46,6 +46,9 @@ public final class TodoConstants {
     /** 无法获取操作人信息 */
     public static final String MSG_CREATOR_MISSING = "无法获取操作人信息";
 
+    /** 请求体格式错误 */
+    public static final String MSG_REQUEST_BODY_INVALID = "请求体格式错误";
+
     // ==================== 字段长度限制 ====================
 
     /** 事项名称最大长度 */

@@ -20,11 +20,4 @@
         VALUES (#{title}, #{description}, #{creator}, #{gmtCreate}, #{gmtModified})
     </insert>
 
-    <!-- 根据ID查询 -->
-    <select id="selectById" resultMap="TodoItemResultMap">
-        SELECT id, title, description, creator, gmt_create, gmt_modified
-        FROM todo_item
-        WHERE id = #{id}
-    </select>
-
 </mapper>

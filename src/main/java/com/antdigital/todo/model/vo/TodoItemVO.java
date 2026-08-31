@@ -27,7 +27,7 @@ public class TodoItemVO implements Serializable {
         this.id = id;
     }
 
-    /** MyBatis 需要无参构造 */
+    /** Jackson 序列化需要无参构造 */
     public TodoItemVO() {
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * 待办事项业务服务实现类
@@ -62,8 +63,8 @@ public class TodoItemServiceImpl implements TodoItemService {
                     TodoConstants.MSG_CREATOR_MISSING);
         }
 
-        // 组装数据对象
-        LocalDateTime now = LocalDateTime.now();
+        // 组装数据对象，显式指定 Asia/Shanghai 时区与设计 GMT+8 一致
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         TodoItemDO todoItem = new TodoItemDO();
         todoItem.setTitle(request.getTitle());
         todoItem.setDescription(request.getDescription());
