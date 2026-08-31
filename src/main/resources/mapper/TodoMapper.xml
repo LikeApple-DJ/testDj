@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.antdigital.todo.dao.mapper.TodoMapper">
+
+    <!-- 结果映射，遵循 mysql.md §4.1 不使用 resultClass -->
+    <resultMap id="TodoResultMap" type="com.antdigital.todo.model.entity.TodoDO">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="tenant_id" property="tenantId" jdbcType="VARCHAR"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="TINYINT"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="is_deleted" property="deleted" jdbcType="TINYINT"/>
+        <result column="gmt_create" property="gmtCreate" jdbcType="TIMESTAMP"/>
+        <result column="gmt_modified" property="gmtModified" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 查询同租户下未删除的同名记录，明确指定字段，禁止 SELECT * -->
+    <select id="selectByTenantAndName" resultMap="TodoResultMap">
+        SELECT id, tenant_id, name, description, status, creator, is_deleted, gmt_create, gmt_modified
+        FROM biz_todo
+        WHERE tenant_id = #{tenantId}
+          AND name = #{name}
+          AND is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 插入待办事项记录，使用 #{} 防止 SQL 注入 -->
+    <insert id="insert" parameterType="com.antdigital.todo.model.entity.TodoDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_todo (tenant_id, name, description, status, creator, is_deleted, gmt_create, gmt_modified)
+        VALUES (#{tenantId}, #{name}, #{description}, #{status}, #{creator}, #{deleted},
+                #{gmtCreate}, #{gmtModified})
+    </insert>
+
+</mapper>
