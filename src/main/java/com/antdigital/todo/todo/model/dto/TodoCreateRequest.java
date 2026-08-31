@@ -1,12 +1,15 @@
 package com.antdigital.todo.todo.model.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-
 import java.util.Objects;
 
 /**
  * 新增待办事项请求 DTO
+ *
+ * <p>字段级业务规则校验（name 非空白/长度、description 长度）统一由
+ * {@code TodoServiceImpl.validate()} 完成，以保证 spec 定义的业务错误码
+ * TODO_0001/TODO_0002/TODO_0003 经 API 可达；此处不放置与 Service 重复的
+ * {@code @NotBlank}/{@code @Size} 约束，避免被全局异常处理器统一映射为
+ * TODO_0004 而破坏错误码契约。</p>
  *
  * @author AiWork
  * @date 2026/08/31
@@ -14,12 +17,9 @@ import java.util.Objects;
 public class TodoCreateRequest {
 
     /** 事项名称，必填，≤100 字符，不可全空白 */
-    @NotBlank(message = "事项名称不可为空")
-    @Size(max = 100, message = "事项名称不可超过100字符")
     private String name;
 
     /** 事项描述，选填，≤500 字符 */
-    @Size(max = 500, message = "事项描述不可超过500字符")
     private String description;
 
     public String getName() {

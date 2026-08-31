@@ -10,6 +10,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
@@ -49,14 +50,14 @@ public class TodoDO {
 
     @PrePersist
     void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         this.gmtCreate = now;
         this.gmtModified = now;
     }
 
     @PreUpdate
     void preUpdate() {
-        this.gmtModified = LocalDateTime.now();
+        this.gmtModified = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public Long getId() {
