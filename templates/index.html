@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>待办事项</title>
+</head>
+<body>
+  <h1>待办事项</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="messages">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+  <form method="post" action="/todos">
+    <label>事项名称<input type="text" name="name" required></label>
+    <label>描述<textarea name="description"></textarea></label>
+    <button type="submit">提交</button>
+  </form>
+  <section class="todo-list">
+    <h2>已保存事项</h2>
+    {% if todos %}
+      <ul>
+        {% for todo in todos|reverse %}
+          <li>
+            <strong>{{ todo.name }}</strong>
+            <span>{{ todo.description }}</span>
+            <time>{{ todo.created_at }}</time>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>暂无待办事项。</p>
+    {% endif %}
+  </section>
+</body>
+</html>
