@@ -1,0 +1,26 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  profiles:
+    active: dev
+  jackson:
+    # 前后端时间格式统一
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    # JSON key 统一 lowerCamelCase（Jackson 默认）
+    property-naming-strategy: LOWER_CAMEL_CASE
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.antdigital.todo.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    com.antdigital.todo: info
+    com.antdigital.todo.dao: debug
