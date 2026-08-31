@@ -1,0 +1,478 @@
+# Final whole-branch review package (working tree, no commits — git read-only env)
+MERGE_BASE / BASE = e69b0c91 (HEAD; no commits made). Change = untracked new files.
+
+## Status
+?? .superpowers/
+?? docs/superpowers/plans/2026-08-31-todo-app.md
+?? tests/
+?? todoapp/
+
+## New files (full content as additions)
+diff --git a/todoapp/__init__.py b/todoapp/__init__.py
+diff --git a/todoapp/__init__.py b/todoapp/__init__.py
+new file mode 100644
+index 00000000..40652084
+--- /dev/null
++++ b/todoapp/__init__.py
+@@ -0,0 +1 @@
++"""todoapp — 极简待办事项命令行应用（Task 1：仅创建闭环）。"""
+diff --git a/todoapp/__main__.py b/todoapp/__main__.py
+diff --git a/todoapp/__main__.py b/todoapp/__main__.py
+new file mode 100644
+index 00000000..ef44b4ca
+--- /dev/null
++++ b/todoapp/__main__.py
+@@ -0,0 +1,5 @@
++"""支持 `python -m todoapp` 直接运行。"""
++
++from todoapp.cli import main
++
++raise SystemExit(main())
+diff --git a/todoapp/model.py b/todoapp/model.py
+diff --git a/todoapp/model.py b/todoapp/model.py
+new file mode 100644
+index 00000000..14615fc2
+--- /dev/null
++++ b/todoapp/model.py
+@@ -0,0 +1,28 @@
++"""待办事项数据模型。"""
++
++from __future__ import annotations
++
++from dataclasses import dataclass, field
++from datetime import datetime, timezone
++
++
++@dataclass
++class Todo:
++    """一条待办事项。
++
++    name: 名称（去空白后必须非空）。
++    description: 描述，可为空串。
++    created_at: 创建时间，ISO 8601 字符串（UTC，精确到秒）。
++    """
++
++    name: str
++    description: str = ""
++    created_at: str = field(
++        default_factory=lambda: datetime.now(timezone.utc)
++        .replace(microsecond=0)
++        .isoformat()
++    )
++
++    def __post_init__(self) -> None:
++        if not self.name.strip():
++            raise ValueError("名称不能为空")
+diff --git a/todoapp/storage.py b/todoapp/storage.py
+diff --git a/todoapp/storage.py b/todoapp/storage.py
+new file mode 100644
+index 00000000..111a1577
+--- /dev/null
++++ b/todoapp/storage.py
+@@ -0,0 +1,51 @@
++"""待办事项的 JSONL 持久化存储。"""
++
++from __future__ import annotations
++
++import json
++from dataclasses import asdict
++from pathlib import Path
++
++from todoapp.model import Todo
++
++DEFAULT_PATH = "todos.jsonl"
++
++
++def save_todo(todo: Todo, path: str = DEFAULT_PATH) -> None:
++    """将一条待办以 JSONL 形式追加写入 path（父目录自动创建）。"""
++    target = Path(path)
++    target.parent.mkdir(parents=True, exist_ok=True)
++    line = json.dumps(asdict(todo), ensure_ascii=False, separators=(",", ":"))
++    with target.open("a", encoding="utf-8") as f:
++        f.write(line + "\n")
++
++
++def load_todos(path: str = DEFAULT_PATH) -> list[Todo]:
++    """读取并解析 path 中的全部待办；文件不存在时返回空列表。"""
++    target = Path(path)
++    if not target.exists():
++        return []
++    todos: list[Todo] = []
++    with target.open("r", encoding="utf-8") as f:
++        for line in f:
++            line = line.strip()
++            if not line:
++                continue
++            data = json.loads(line)
++            todos.append(
++                Todo(
++                    name=data["name"],
++                    description=data.get("description", ""),
++                    created_at=data.get("created_at", ""),
++                )
++            )
++    return todos
++
++
++def create_todo(
++    name: str, description: str = "", path: str = DEFAULT_PATH
++) -> Todo:
++    """组合「构造 + 校验 + 持久化」，返回已保存的 Todo。"""
++    todo = Todo(name=name, description=description)
++    save_todo(todo, path=path)
++    return todo
+diff --git a/todoapp/cli.py b/todoapp/cli.py
+diff --git a/todoapp/cli.py b/todoapp/cli.py
+new file mode 100644
+index 00000000..4bd619f7
+--- /dev/null
++++ b/todoapp/cli.py
+@@ -0,0 +1,31 @@
++"""命令行入口：`todoapp add <name> [description]`。"""
++
++from __future__ import annotations
++
++import argparse
++import sys
++
++from todoapp.storage import create_todo
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(prog="todoapp", description="极简待办事项应用")
++    subparsers = parser.add_subparsers(dest="command", required=True)
++    add = subparsers.add_parser("add", help="新增一条待办事项")
++    add.add_argument("name", help="待办事项名称")
++    add.add_argument("description", nargs="?", default="", help="待办事项描述（可选）")
++    return parser
++
++
++def main(argv: list[str] | None = None) -> int:
++    """解析参数并执行子命令，返回退出码。"""
++    args = build_parser().parse_args(argv)
++    if args.command == "add":
++        try:
++            todo = create_todo(name=args.name, description=args.description)
++        except ValueError as exc:
++            print(f"错误：{exc}", file=sys.stderr)
++            return 1
++        print(f"已创建待办事项：{todo.name}，已保存到 todos.jsonl")
++        return 0
++    return 2  # pragma: no cover - subparsers required=True 保证不会到达
+diff --git a/tests/__init__.py b/tests/__init__.py
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 00000000..e69de29b
+diff --git a/tests/test_todo.py b/tests/test_todo.py
+diff --git a/tests/test_todo.py b/tests/test_todo.py
+new file mode 100644
+index 00000000..79ccc923
+--- /dev/null
++++ b/tests/test_todo.py
+@@ -0,0 +1,161 @@
++"""Task 1 测试：Todo 模型、JSONL 存储、CLI add 子命令。
++
++全部使用真实文件 IO（tempfile 隔离），不 mock。
++"""
++
++from __future__ import annotations
++
++import contextlib
++import io
++import json
++import os
++import subprocess
++import sys
++import tempfile
++import unittest
++from datetime import datetime
++from pathlib import Path
++
++from todoapp import cli
++from todoapp.model import Todo
++from todoapp.storage import create_todo, load_todos, save_todo
++
++
++class TestTodoModel(unittest.TestCase):
++    def test_construct_with_name_and_description(self) -> None:
++        todo = Todo(name="买菜", description="周末去超市")
++        self.assertEqual(todo.name, "买菜")
++        self.assertEqual(todo.description, "周末去超市")
++        # created_at 为非空 ISO 字符串
++        self.assertIsInstance(todo.created_at, str)
++        self.assertTrue(todo.created_at.strip())
++        datetime.fromisoformat(todo.created_at)
++
++    def test_blank_name_raises_value_error(self) -> None:
++        with self.assertRaises(ValueError):
++            Todo(name="   ")
++        with self.assertRaises(ValueError):
++            Todo(name="")
++
++    def test_empty_description_allowed(self) -> None:
++        todo = Todo(name="x", description="")
++        self.assertEqual(todo.name, "x")
++        self.assertEqual(todo.description, "")
++
++
++class TestStorage(unittest.TestCase):
++    def setUp(self) -> None:
++        self._tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self._tmp.cleanup)
++        self.path = str(Path(self._tmp.name) / "nested" / "todos.jsonl")
++
++    def test_save_then_load_roundtrip_and_append(self) -> None:
++        first = Todo(name="买菜", description="周末去超市")
++        save_todo(first, path=self.path)  # 父目录应自动创建
++        self.assertTrue(Path(self.path).is_file())
++
++        second = Todo(name="写报告", description="")
++        save_todo(second, path=self.path)
++
++        loaded = load_todos(path=self.path)
++        self.assertEqual(len(loaded), 2)  # 追加而非覆盖
++        self.assertEqual(loaded[0].name, "买菜")
++        self.assertEqual(loaded[0].description, "周末去超市")
++        self.assertEqual(loaded[0].created_at, first.created_at)
++        self.assertEqual(loaded[1].name, "写报告")
++        self.assertEqual(loaded[1].description, "")
++        self.assertEqual(loaded[1].created_at, second.created_at)
++
++        # 文件内容确为 JSONL：一行一个合法 JSON
++        lines = Path(self.path).read_text(encoding="utf-8").splitlines()
++        self.assertEqual(len(lines), 2)
++        for line in lines:
++            json.loads(line)
++
++    def test_load_empty_file_returns_empty_list(self) -> None:
++        Path(self.path).parent.mkdir(parents=True)
++        Path(self.path).touch()
++        self.assertEqual(load_todos(path=self.path), [])
++
++    def test_create_todo_returns_saved_todo(self) -> None:
++        todo = create_todo("写报告", "周五前", path=self.path)
++        self.assertEqual(todo.name, "写报告")
++        self.assertEqual(todo.description, "周五前")
++
++        loaded = load_todos(path=self.path)
++        self.assertEqual(len(loaded), 1)
++        self.assertEqual(loaded[0].name, todo.name)
++        self.assertEqual(loaded[0].description, todo.description)
++        self.assertEqual(loaded[0].created_at, todo.created_at)
++
++
++class TestCli(unittest.TestCase):
++    def setUp(self) -> None:
++        self._tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self._tmp.cleanup)
++        # 在隔离临时目录中运行 CLI，使默认存储路径 todos.jsonl 落在其中
++        self._cwd = os.getcwd()
++        os.chdir(self._tmp.name)
++        self.addCleanup(os.chdir, self._cwd)
++
++    def _run_cli(self, argv: list[str]) -> tuple[int, str, str]:
++        out, err = io.StringIO(), io.StringIO()
++        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
++            code = cli.main(argv)
++        return code, out.getvalue(), err.getvalue()
++
++    def test_add_success(self) -> None:
++        code, out, _ = self._run_cli(["add", "晨会", "9点开始"])
++        self.assertEqual(code, 0)
++        self.assertIn("晨会", out)
++        # 成功提示须同时包含名称与存储位置
++        self.assertIn("todos.jsonl", out)
++
++        loaded = load_todos(path="todos.jsonl")
++        self.assertEqual(len(loaded), 1)
++        self.assertEqual(loaded[0].name, "晨会")
++        self.assertEqual(loaded[0].description, "9点开始")
++
++    def test_add_with_empty_name_fails(self) -> None:
++        code, out, err = self._run_cli(["add", ""])
++        self.assertNotEqual(code, 0)
++        self.assertIn("名称不能为空", out + err)
++        # 非法输入不得落盘
++        self.assertFalse(Path("todos.jsonl").exists())
++
++
++class TestCliSubprocess(unittest.TestCase):
++    """真实 CLI 子进程测试：经 `python -m todoapp` 入口（覆盖 __main__.py）。"""
++
++    def test_add_via_real_subprocess(self) -> None:
++        repo_root = Path(__file__).resolve().parents[1]
++        with tempfile.TemporaryDirectory() as tmp:
++            env = dict(os.environ)
++            # 让子进程在任意 cwd 下都能 import todoapp
++            env["PYTHONPATH"] = str(repo_root) + os.pathsep + env.get("PYTHONPATH", "")
++            result = subprocess.run(
++                [sys.executable, "-m", "todoapp", "add", "晨会", "9点开始"],
++                cwd=tmp,
++                capture_output=True,
++                text=True,
++                env=env,
++            )
++            self.assertEqual(result.returncode, 0, msg=result.stderr)
++            # stdout 须同时包含名称与存储位置
++            self.assertIn("晨会", result.stdout)
++            self.assertIn("todos.jsonl", result.stdout)
++
++            # JSONL 行落盘到 <tmp>/todos.jsonl
++            jsonl = Path(tmp) / "todos.jsonl"
++            self.assertTrue(jsonl.is_file())
++            lines = jsonl.read_text(encoding="utf-8").splitlines()
++            self.assertEqual(len(lines), 1)
++            row = json.loads(lines[0])
++            self.assertEqual(row["name"], "晨会")
++            self.assertEqual(row["description"], "9点开始")
++            # 紧凑 JSON：无 ": " 分隔符
++            self.assertNotIn('": ', lines[0])
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+## Implementer report (for claim cross-check)
+# Task 1 报告：待办事项创建功能（模型 + 存储 + CLI + 测试）
+
+**状态：DONE**
+
+## 实现内容
+
+按 brief 的接口签名逐字实现，文件结构与 brief 完全一致：
+
+| 文件 | 内容 |
+| --- | --- |
+| `todoapp/__init__.py` | 包标识（docstring） |
+| `todoapp/model.py` | `Todo` dataclass：`name: str`、`description: str`、`created_at: str`；`__post_init__` 校验 `name` 去空白后非空（否则 `ValueError("名称不能为空")`）；`created_at` 默认为 UTC ISO 8601 字符串（`datetime.now(timezone.utc)`） |
+| `todoapp/storage.py` | `save_todo(todo, path="todos.jsonl") -> None`（JSONL 追加一行，`ensure_ascii=False` 保留中文，父目录自动创建）；`load_todos(path="todos.jsonl") -> list[Todo]`（文件不存在返回 `[]`，跳过空行）；`create_todo(name, description="", path="todos.jsonl") -> Todo`（构造 + 校验 + 持久化） |
+| `todoapp/cli.py` | `main(argv: list[str] \| None = None) -> int`：argparse `add` 子命令，位置参数 `name`、`description`（`nargs="?"`，默认空串）；成功打印 `已创建待办事项：<name>` 返回 0；`ValueError` 打印 `错误：名称不能为空` 到 stderr 返回 1 |
+| `todoapp/__main__.py` | `from todoapp.cli import main; raise SystemExit(main())`，支持 `python -m todoapp` |
+| `tests/__init__.py` | 空文件（使 `tests` 成为包，保证 discover 稳定） |
+| `tests/test_todo.py` | 8 个测试，覆盖 brief 列出的全部 7 项行为，真实文件 IO + `tempfile` 隔离，零 mock |
+
+## TDD 证据
+
+### Step 1 — 骨架（0 测试可运行）
+
+```
+$ python3 -m unittest discover
+Ran 0 tests in 0.000s
+NO TESTS RAN          # exit=5，0 测试时的正常信号，非报错
+```
+
+### Step 2 — RED（先写测试，全部失败）
+
+```
+$ python3 -m unittest discover
+ImportError: Failed to import test module: tests.test_todo
+ImportError: cannot import name 'cli' from 'todoapp' (todoapp/__init__.py)
+Ran 1 test in 0.000s
+FAILED (errors=1)
+```
+
+### Step 3/4 — GREEN（实现 model/storage/cli/__main__ 后全通过）
+
+```
+$ python3 -m unittest discover -v
+test_add_success (tests.test_todo.TestCli.test_add_success) ... ok
+test_add_with_empty_name_fails (tests.test_todo.TestCli.test_add_with_empty_name_fails) ... ok
+test_create_todo_returns_saved_todo (tests.test_todo.TestStorage.test_create_todo_returns_saved_todo) ... ok
+test_load_empty_file_returns_empty_list (tests.test_todo.TestStorage.test_load_empty_file_returns_empty_list) ... ok
+test_save_then_load_roundtrip_and_append (tests.test_todo.TestStorage.test_save_then_load_roundtrip_and_append) ... ok
+test_blank_name_raises_value_error (tests.test_todo.TestTodoModel.test_blank_name_raises_value_error) ... ok
+test_construct_with_name_and_description (tests.test_todo.TestTodoModel.test_construct_with_name_and_description) ... ok
+test_empty_description_allowed (tests.test_todo.TestTodoModel.test_empty_description_allowed) ... ok
+
+Ran 8 tests in 0.003s
+OK                      # exit=0，输出无告警/噪声
+```
+
+### Step 5 — 真实 CLI 冒烟
+
+```
+$ python3 -m todoapp add "测试事项" "这是描述"
+已创建待办事项：测试事项            # stdout 确认，exit=0
+$ cat todos.jsonl
+{"name": "测试事项", "description": "这是描述", "created_at": "2026-08-31T09:12:19+00:00"}   # 恰好一行 JSON
+
+$ python3 -m todoapp add ""
+stderr: 错误：名称不能为空           # exit=1，未落盘
+```
+
+冒烟产生的 `todos.jsonl` 已删除（`ls: cannot access 'todos.jsonl'` 确认），删除后复跑 `python3 -m unittest discover -v` 仍为 8/8 OK。
+
+## 自审
+
+- **仅创建闭环**：无 list/update/delete，无多余 CLI 子命令；`load_todos` 仅按 brief 要求为测试/核验闭环存在，未暴露为 CLI 功能。
+- **零第三方依赖**：仅 stdlib（dataclasses / datetime / json / pathlib / argparse / unittest / tempfile）。
+- **错误处理**：空白名称 → `ValueError`（模型层）；CLI 捕获后非 0 退出 + stderr 提示，且不落盘；存储层父目录自动创建、文件缺失返回空列表、跳过空行。
+- **测试真实行为**：全部真实文件 IO（tempfile 隔离），CLI 测试用 `os.chdir` 隔离默认路径，校验了 JSONL 文件内容本身是合法逐行 JSON。
+- **中文处理**：JSON 写入 `ensure_ascii=False`，文件统一 UTF-8。
+
+## 关注点 / 偏差说明
+
+1. **`python` 不在 PATH 上**（仅有 `python3`，3.12.3），故验证命令实际为 `python3 -m unittest discover` / `python3 -m todoapp ...`，与 brief 的 `python ...` 等价。未为创建 `python` 别名而改动系统。
+2. **`created_at` 精度**：截断到秒（`replace(microsecond=0)`），格式为带 UTC 偏移的 ISO 8601（如 `2026-08-31T09:12:19+00:00`），可被 `datetime.fromisoformat` 解析。
+3. **CLI 默认路径**：`cli.main` 按 brief 签名不含 path 参数，固定写工作目录下 `todos.jsonl`；测试中通过 `os.chdir` 到临时目录隔离。若后续任务需要可配置路径，可在 `create_todo` 已有的 `path` 参数上扩展。
+4. 按环境约束未执行任何 git 写操作，全部新文件以 untracked 状态留在工作树中。
+
+## Fix Round 1
+
+针对评审发现的三项问题（Critical ×1、Important ×1、Minor ×1）完成修复。未执行任何 git 写操作。
+
+### 变更明细
+
+1. **Critical — 成功提示补充存储位置**：`todoapp/cli.py:29`
+   - 旧：`print(f"已创建待办事项：{todo.name}")`
+   - 新：`print(f"已创建待办事项：{todo.name}，已保存到 todos.jsonl")`
+   - 依据：`cli.main` 按 brief 签名固定使用默认路径 `todos.jsonl`，故提示中直接给出该路径，满足「stdout 确认含 name 与存储位置」。
+   - 同步扩展 `tests/test_todo.py` 的 `TestCli.test_add_success`，新增 `assertIn("todos.jsonl", out)`。
+
+2. **Important — 新增真实 CLI 子进程测试**：`tests/test_todo.py`（新增 `TestCliSubprocess.test_add_via_real_subprocess`，并新增 `import subprocess` / `import sys`）
+   - 通过 `subprocess.run([sys.executable, "-m", "todoapp", "add", "晨会", "9点开始"], cwd=<临时目录>, capture_output=True, text=True, env=...)` 走真实 `python -m todoapp` 入口，覆盖此前零覆盖的 `todoapp/__main__.py`。
+   - 断言：退出码 0；stdout 含「晨会」与「todos.jsonl」；`<tmp>/todos.jsonl` 存在且恰有一行 JSONL，解析后 name/description 正确；行内无 `": "`（顺带验证紧凑 JSON）。
+   - 子进程以 `cwd=tmp` 运行并注入 `PYTHONPATH=<仓库根>`，不扰动测试进程自身 cwd。
+
+3. **Minor — 紧凑 JSON**：`todoapp/storage.py:18`
+   - 旧：`json.dumps(asdict(todo), ensure_ascii=False)`
+   - 新：`json.dumps(asdict(todo), ensure_ascii=False, separators=(",", ":"))`
+   - 修复后行示例：`{"name":"测试事项","description":"这是描述","created_at":"2026-08-31T09:19:36+00:00"}`。
+   - 按指示，cli.py 未捕获 OSError 的 Minor 项本轮仅记录、不修复（deferred）。
+
+### 重跑测试
+
+命令：`python3 -W error -m unittest discover -v`（加 `-W error` 以确保无任何警告，输出纯净）
+
+结果：**9/9 全部通过，OK，无警告**。
+
+```
+test_add_success (tests.test_todo.TestCli.test_add_success) ... ok
+test_add_with_empty_name_fails (tests.test_todo.TestCli.test_add_with_empty_name_fails) ... ok
+test_add_via_real_subprocess (tests.test_todo.TestCliSubprocess.test_add_via_real_subprocess) ... ok
+test_create_todo_returns_saved_todo (tests.test_todo.TestStorage.test_create_todo_returns_saved_todo) ... ok
+test_load_empty_file_returns_empty_list (tests.test_todo.TestStorage.test_load_empty_file_returns_empty_list) ... ok
+test_save_then_load_roundtrip_and_append (tests.test_todo.TestStorage.test_save_then_load_roundtrip_and_append) ... ok
+test_blank_name_raises_value_error (tests.test_todo.TestTodoModel.test_blank_name_raises_value_error) ... ok
+test_construct_with_name_and_description (tests.test_todo.TestTodoModel.test_construct_with_name_and_description) ... ok
+test_empty_description_allowed (tests.test_todo.TestTodoModel.test_empty_description_allowed) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.039s
+
+OK
+```
+
+### 真实 CLI 冒烟
+
+命令：`python3 -m todoapp add "测试事项" "这是描述"`
+
+stdout：`已创建待办事项：测试事项，已保存到 todos.jsonl`（exit 0）——**存储位置已出现在成功提示中**，与 name 同时满足约束。
+
+落盘验证：`todos.jsonl` 内容为紧凑 JSONL：`{"name":"测试事项","description":"这是描述","created_at":"2026-08-31T09:19:36+00:00"}`。
+
+**产物清理**：冒烟产生的 `todos.jsonl` 已 `rm` 删除，`ls todos.jsonl` 确认 "No such file or directory"。
+
+### 遗留事项
+
+- Minor（deferred，record-only）：`todoapp/cli.py` 对磁盘写入的 `OSError`（如磁盘满、权限不足）未捕获，会以 traceback 退出。按本轮指示暂不修复。
