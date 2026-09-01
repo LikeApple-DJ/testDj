@@ -42,7 +42,10 @@ describe('TodoRepository', () => {
   });
 
   afterEach(() => {
-    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    for (const suffix of ['', '-wal', '-shm']) {
+      const p = testDbPath + suffix;
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
   });
 
   it('creates a todo and returns it with id and createdAt', () => {
@@ -76,7 +79,10 @@ describe('POST /api/todos', () => {
   });
 
   afterEach(() => {
-    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    for (const suffix of ['', '-wal', '-shm']) {
+      const p = testDbPath + suffix;
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
   });
 
   it('returns 201 with the created todo on valid input', async () => {

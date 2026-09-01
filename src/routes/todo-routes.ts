@@ -11,7 +11,7 @@ export function createTodoRoutes(repo: TodoRepository): Router {
       res.status(400).json({ error: 'name is required and must be a non-empty string' });
       return;
     }
-    if (name.length > 200) {
+    if (name.trim().length > 200) {
       res.status(400).json({ error: 'name must not exceed 200 characters' });
       return;
     }
