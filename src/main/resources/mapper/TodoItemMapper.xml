@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aiwork.todo.dao.mapper.TodoItemMapper">
+
+    <!-- 结果映射：遵循 MySQL 规约，禁止使用 resultClass，必须定义 resultMap -->
+    <resultMap id="TodoItemResultMap" type="com.aiwork.todo.model.entity.TodoItemDO">
+        <id     column="id"           property="id"          jdbcType="BIGINT"/>
+        <result column="tenant_id"    property="tenantId"    jdbcType="VARCHAR"/>
+        <result column="title"        property="title"       jdbcType="VARCHAR"/>
+        <result column="description"  property="description" jdbcType="VARCHAR"/>
+        <result column="status"       property="status"      jdbcType="VARCHAR"/>
+        <result column="creator"      property="creator"     jdbcType="VARCHAR"/>
+        <result column="gmt_create"   property="gmtCreate"   jdbcType="TIMESTAMP"/>
+        <result column="gmt_modified" property="gmtModified" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 新增待办事项：gmt_create/gmt_modified 由数据库默认值填充，主键回写 -->
+    <!-- 参数传递使用 #{} 防止 SQL 注入 -->
+    <insert id="insert" parameterType="com.aiwork.todo.model.entity.TodoItemDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO todo_item (tenant_id, title, description, status, creator)
+        VALUES (#{tenantId}, #{title}, #{description}, #{status}, #{creator})
+    </insert>
+
+</mapper>
