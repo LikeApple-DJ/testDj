@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: todo-app
+  datasource:
+    url: jdbc:mysql://localhost:3306/todo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 变更三板斧-可应急：新增待办事项功能开关
+todo:
+  create:
+    enabled: true
