@@ -11,8 +11,7 @@ public interface TodoService {
      * 创建待办事项
      *
      * @param request 创建请求
-     * @param userId  用户ID
      * @return 新建待办事项的ID
      */
-    Long createTodo(CreateTodoRequest request, String userId);
+    Long createTodo(CreateTodoRequest request);
 }

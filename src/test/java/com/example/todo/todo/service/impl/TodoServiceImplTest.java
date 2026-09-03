@@ -26,8 +26,6 @@ import static org.mockito.Mockito.when;
 @DisplayName("TodoServiceImpl - 待办事项服务实现")
 class TodoServiceImplTest {
 
-    private static final String TEST_USER_ID = "TEST_USER";
-
     @Mock
     private TodoItemMapper todoItemMapper;
 
@@ -54,7 +52,7 @@ class TodoServiceImplTest {
                     });
 
             // Act
-            Long result = todoService.createTodo(request, TEST_USER_ID);
+            Long result = todoService.createTodo(request);
 
             // Assert
             assertThat(result).isEqualTo(1L);
@@ -62,7 +60,7 @@ class TodoServiceImplTest {
             ArgumentCaptor<TodoItemDO> captor = ArgumentCaptor.forClass(TodoItemDO.class);
             verify(todoItemMapper).insert(captor.capture());
             TodoItemDO captured = captor.getValue();
-            assertThat(captured.getUserId()).isEqualTo(TEST_USER_ID);
+            assertThat(captured.getUserId()).isEqualTo("SYSTEM");
             assertThat(captured.getTitle()).isEqualTo("完成周报");
             assertThat(captured.getDescription()).isEqualTo("本周完成项目进度汇报");
             assertThat(captured.getStatus()).isZero();
@@ -85,7 +83,7 @@ class TodoServiceImplTest {
                     });
 
             // Act
-            Long result = todoService.createTodo(request, TEST_USER_ID);
+            Long result = todoService.createTodo(request);
 
             // Assert
             assertThat(result).isEqualTo(2L);
@@ -103,7 +101,7 @@ class TodoServiceImplTest {
             request.setTitle(null);
 
             // Act & Assert
-            assertThatThrownBy(() -> todoService.createTodo(request, TEST_USER_ID))
+            assertThatThrownBy(() -> todoService.createTodo(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("事项名称不能为空")
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("TODO_001"));
@@ -117,7 +115,7 @@ class TodoServiceImplTest {
             request.setTitle("   ");
 
             // Act & Assert
-            assertThatThrownBy(() -> todoService.createTodo(request, TEST_USER_ID))
+            assertThatThrownBy(() -> todoService.createTodo(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("事项名称不能为空")
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("TODO_001"));
@@ -131,7 +129,7 @@ class TodoServiceImplTest {
             request.setTitle("a".repeat(101));
 
             // Act & Assert
-            assertThatThrownBy(() -> todoService.createTodo(request, TEST_USER_ID))
+            assertThatThrownBy(() -> todoService.createTodo(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("事项名称长度超过限制（100字符）")
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("TODO_002"));
@@ -146,7 +144,7 @@ class TodoServiceImplTest {
             request.setDescription("d".repeat(501));
 
             // Act & Assert
-            assertThatThrownBy(() -> todoService.createTodo(request, TEST_USER_ID))
+            assertThatThrownBy(() -> todoService.createTodo(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("事项描述长度超过限制（500字符）")
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("TODO_003"));
@@ -162,7 +160,7 @@ class TodoServiceImplTest {
             when(todoItemMapper.insert(any(TodoItemDO.class))).thenReturn(0);
 
             // Act & Assert
-            assertThatThrownBy(() -> todoService.createTodo(request, TEST_USER_ID))
+            assertThatThrownBy(() -> todoService.createTodo(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("系统繁忙，请稍后重试")
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("B0001"));

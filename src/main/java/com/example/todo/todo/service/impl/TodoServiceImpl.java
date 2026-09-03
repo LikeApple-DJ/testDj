@@ -26,7 +26,7 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
-    public Long createTodo(CreateTodoRequest request, String userId) {
+    public Long createTodo(CreateTodoRequest request) {
         // 参数校验（防御性校验）
         String title = request.getTitle();
         if (title == null || title.trim().isEmpty()) {
@@ -41,6 +41,9 @@ public class TodoServiceImpl implements TodoService {
         }
 
         // 构建实体
+        // 当前版本暂未接入统一登录态，使用固定用户ID
+        // 后续接入统一登录态后，从 SecurityContext 中获取
+        String userId = "SYSTEM";
         TodoItemDO todoItem = new TodoItemDO();
         todoItem.setUserId(userId);
         todoItem.setTitle(title.trim());

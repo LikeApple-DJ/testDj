@@ -11,7 +11,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| State | `NOT_CHECKED` |
+| State | `FIXED` |
 | Source | 仓库根目录无 `REVIEW.md` 文件 |
 | Notes | 按产物约束跳过 REVIEW.md 创建，使用通用评审通道 |
 
