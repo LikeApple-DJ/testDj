@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 /**
@@ -34,7 +35,7 @@ public class TodoController {
      * @return 创建结果
      */
     @PostMapping("/create")
-    public ApiResponse<Map<String, Long>> createTodo(@RequestBody CreateTodoRequest request) {
+    public ApiResponse<Map<String, Long>> createTodo(@Valid @RequestBody CreateTodoRequest request) {
         log.info("新增待办事项请求: title={}, description={}", request.getTitle(), request.getDescription());
 
         Long id = todoService.createTodo(request);

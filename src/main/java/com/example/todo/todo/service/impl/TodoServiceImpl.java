@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * 待办事项 - 业务服务实现
@@ -49,7 +50,7 @@ public class TodoServiceImpl implements TodoService {
         todoItem.setTitle(title.trim());
         todoItem.setDescription(description != null ? description.trim() : null);
         todoItem.setStatus(0); // 0-待办
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         todoItem.setGmtCreate(now);
         todoItem.setGmtModified(now);
 
