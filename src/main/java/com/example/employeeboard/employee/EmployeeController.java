@@ -1,9 +1,8 @@
 package com.example.employeeboard.employee;
 
+import com.example.employeeboard.common.BizException;
 import com.example.employeeboard.common.PageResult;
 import com.example.employeeboard.common.Result;
-import com.example.employeeboard.common.UserContext;
-import com.example.employeeboard.whitelist.WhitelistService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,11 +22,9 @@ import java.util.Map;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
-    private final WhitelistService whitelistService;
 
-    public EmployeeController(EmployeeService employeeService, WhitelistService whitelistService) {
+    public EmployeeController(EmployeeService employeeService) {
         this.employeeService = employeeService;
-        this.whitelistService = whitelistService;
     }
 
     @PostMapping("/create")
@@ -47,16 +44,15 @@ public class EmployeeController {
 
     @PostMapping("/pageQuery")
     public Result<PageResult<EmployeeDTO>> pageQuery(@Valid @RequestBody EmployeeQueryReq req) {
-        // 管理端接口已要求白名单，此处按需求保留按角色脱敏扩展点；当前白名单内可见明文
-        boolean mask = !whitelistService.isAllowed(UserContext.getCurrentEmpNo());
-        return Result.ok(employeeService.pageQuery(req, mask));
+        // 设计约定：列表接口手机号默认中间四位打码（design.md §6.4.3.2）
+        return Result.ok(employeeService.pageQuery(req, true));
     }
 
     @GetMapping("/detail")
     public Result<EmployeeDTO> detail(@RequestParam String empNo) {
         EmployeeDTO dto = employeeService.getByEmpNo(empNo);
         if (dto == null) {
-            throw new com.example.employeeboard.common.BizException("EMP_003", "员工不存在");
+            throw new BizException("EMP_003", "员工不存在");
         }
         return Result.ok(dto);
     }

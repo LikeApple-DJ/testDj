@@ -5,14 +5,20 @@ import com.example.employeeboard.budget.BudgetService;
 import com.example.employeeboard.common.BizException;
 import com.example.employeeboard.common.PageResult;
 import com.example.employeeboard.employee.mapper.EmployeeMapper;
+import com.example.employeeboard.importing.ImportTaskDO;
+import com.example.employeeboard.importing.mapper.ImportTaskMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -31,12 +37,18 @@ public class EmployeeServiceImpl implements EmployeeService {
             Pattern.compile("^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1\\d{10}$");
 
+    private static final DateTimeFormatter HIRE_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(ResolverStyle.STRICT);
+
     private final EmployeeMapper employeeMapper;
     private final BudgetService budgetService;
+    private final ImportTaskMapper importTaskMapper;
 
-    public EmployeeServiceImpl(EmployeeMapper employeeMapper, BudgetService budgetService) {
+    public EmployeeServiceImpl(EmployeeMapper employeeMapper, BudgetService budgetService,
+                               ImportTaskMapper importTaskMapper) {
         this.employeeMapper = employeeMapper;
         this.budgetService = budgetService;
+        this.importTaskMapper = importTaskMapper;
     }
 
     @Override
@@ -147,7 +159,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         dto.setTotalCount(employeeMapper.countActive(DEFAULT_TENANT));
         dto.setDeptCount(employeeMapper.countDepts(DEFAULT_TENANT));
         dto.setBudgetTotal(budgetService.sumCurrentPeriod());
-        dto.setRecentImport(null);
+        ImportTaskDO latestTask = importTaskMapper.selectLatestTask(DEFAULT_TENANT);
+        if (latestTask != null) {
+            dto.setRecentImport(new EmployeeSummaryDTO.RecentImport(
+                    latestTask.getId(), latestTask.getSuccessCount(), latestTask.getFailCount()));
+        }
         return dto;
     }
 
@@ -183,15 +199,14 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
     }
 
-    private java.util.Date parseDate(String hireDate) {
+    private Date parseDate(String hireDate) {
         if (!StringUtils.hasText(hireDate)) {
             return null;
         }
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            sdf.setLenient(false);
-            return sdf.parse(hireDate);
-        } catch (ParseException e) {
+            LocalDate date = LocalDate.parse(hireDate, HIRE_DATE_FORMATTER);
+            return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        } catch (DateTimeParseException e) {
             throw new BizException("EMP_002", "入职日期格式非法，应为 yyyy-MM-dd");
         }
     }

@@ -4,12 +4,15 @@ import com.example.employeeboard.budget.BudgetService;
 import com.example.employeeboard.common.BizException;
 import com.example.employeeboard.common.PageResult;
 import com.example.employeeboard.employee.mapper.EmployeeMapper;
+import com.example.employeeboard.importing.ImportTaskDO;
+import com.example.employeeboard.importing.mapper.ImportTaskMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +35,9 @@ class EmployeeServiceImplTest {
 
     @Mock
     private BudgetService budgetService;
+
+    @Mock
+    private ImportTaskMapper importTaskMapper;
 
     @InjectMocks
     private EmployeeServiceImpl employeeService;
@@ -124,6 +130,25 @@ class EmployeeServiceImplTest {
 
         assertEquals(1L, page.getTotal());
         assertEquals("138****0000", page.getList().get(0).getPhone());
+    }
+
+    @Test
+    void should_fillRecentImport_when_summaryHasLatestTask() {
+        when(employeeMapper.countActive(anyString())).thenReturn(3L);
+        when(employeeMapper.countDepts(anyString())).thenReturn(2L);
+        when(budgetService.sumCurrentPeriod()).thenReturn(BigDecimal.TEN);
+        ImportTaskDO task = new ImportTaskDO();
+        task.setId(7L);
+        task.setSuccessCount(9);
+        task.setFailCount(1);
+        when(importTaskMapper.selectLatestTask(anyString())).thenReturn(task);
+
+        EmployeeSummaryDTO summary = employeeService.summary();
+
+        assertNotNull(summary.getRecentImport());
+        assertEquals(7L, summary.getRecentImport().getBatchNo());
+        assertEquals(9, summary.getRecentImport().getSuccessCount());
+        assertEquals(1, summary.getRecentImport().getFailCount());
     }
 
     @Test

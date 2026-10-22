@@ -9,8 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,10 +36,14 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public boolean saveBudget(BudgetSaveReq req) {
+        if (!StringUtils.hasText(req.getEmpNo())) {
+            throw new BizException("BUD_002", "工号不能为空");
+        }
         if (employeeMapper.selectByEmpNo(DEFAULT_TENANT, req.getEmpNo()) == null) {
             throw new BizException("BUD_001", "员工不存在");
         }
-        if (!PERIOD_PATTERN.matcher(req.getBudgetPeriod()).matches()) {
+        if (!StringUtils.hasText(req.getBudgetPeriod())
+                || !PERIOD_PATTERN.matcher(req.getBudgetPeriod()).matches()) {
             throw new BizException("BUD_002", "预算周期格式非法，应为 yyyy-MM 或 yyyy-Qn");
         }
         if (req.getAmount() == null || req.getAmount().signum() < 0
@@ -67,7 +70,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public BigDecimal sumCurrentPeriod() {
-        String period = new SimpleDateFormat("yyyy-MM").format(new Date());
+        String period = YearMonth.now().toString();
         return budgetMapper.sumByPeriod(DEFAULT_TENANT, period);
     }
 }

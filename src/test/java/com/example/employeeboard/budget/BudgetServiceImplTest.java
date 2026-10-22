@@ -56,6 +56,16 @@ class BudgetServiceImplTest {
     }
 
     @Test
+    void should_throwBud002_when_budgetPeriodNull() {
+        when(employeeMapper.selectByEmpNo(anyString(), anyString())).thenReturn(new EmployeeDO());
+        BudgetSaveReq req = buildReq();
+        req.setBudgetPeriod(null);
+
+        BizException e = assertThrows(BizException.class, () -> budgetService.saveBudget(req));
+        assertEquals("BUD_002", e.getErrorCode());
+    }
+
+    @Test
     void should_throwBud001_when_employeeNotFound() {
         when(employeeMapper.selectByEmpNo(anyString(), anyString())).thenReturn(null);
 

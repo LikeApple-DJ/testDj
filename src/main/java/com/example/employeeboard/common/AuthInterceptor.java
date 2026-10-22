@@ -28,11 +28,12 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String empNo = request.getHeader(HEADER_EMP_NO);
-        UserContext.setCurrentEmpNo(empNo);
+        // 先做白名单校验，通过后才写入 ThreadLocal，避免拒绝路径残留上下文
         if (!whitelistService.isAllowed(empNo)) {
             LOGGER.warn("whitelist check rejected, empNo={}", empNo);
             throw new BizException("WL_001", "操作者不在白名单");
         }
+        UserContext.setCurrentEmpNo(empNo);
         return true;
     }
 

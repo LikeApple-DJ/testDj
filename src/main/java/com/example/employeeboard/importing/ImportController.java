@@ -2,12 +2,19 @@ package com.example.employeeboard.importing;
 
 import com.example.employeeboard.common.Result;
 import com.example.employeeboard.common.UserContext;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * 批量导入管理端接口（W07-W09）。
@@ -26,11 +33,10 @@ public class ImportController {
      * W07 模板下载：列 工号*、姓名*、部门*、岗位、邮箱、手机号、入职日期、成本预算金额、预算周期。
      */
     @GetMapping("/template")
-    public void downloadTemplate(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
-        try (org.apache.poi.ss.usermodel.Workbook workbook =
-                     new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
-            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("员工导入模板");
-            org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+    public void downloadTemplate(HttpServletResponse response) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("员工导入模板");
+            Row header = sheet.createRow(0);
             String[] columns = {"工号", "姓名", "部门", "岗位", "邮箱", "手机号", "入职日期", "成本预算金额", "预算周期"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);

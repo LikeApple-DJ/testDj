@@ -17,13 +17,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 批量导入服务实现：逐行校验、逐行小事务落库，失败行记录明细。
@@ -34,6 +44,12 @@ public class ImportServiceImpl implements ImportService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImportServiceImpl.class);
     private static final String DEFAULT_TENANT = "default";
     private static final int MAX_ROWS = 1000;
+    /** 同文件 MD5 防重复提交窗口（毫秒），见 design.md §5.2.3.1 并发控制 */
+    private static final long DUPLICATE_WINDOW_MILLIS = 30_000L;
+    private static final DateTimeFormatter HIRE_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(ResolverStyle.STRICT);
+    /** 文件 MD5 → 最近上传时间戳，用于 30s 重复提交检测 */
+    private final Map<String, Long> recentUploads = new ConcurrentHashMap<>();
     /** 模板表头：工号*、姓名*、部门*、岗位、邮箱、手机号、入职日期、成本预算金额、预算周期 */
     private static final String[] TEMPLATE_HEADER = {
             "工号", "姓名", "部门", "岗位", "邮箱", "手机号", "入职日期", "成本预算金额", "预算周期"};
@@ -55,6 +71,9 @@ public class ImportServiceImpl implements ImportService {
                 || !file.getOriginalFilename().endsWith(".xlsx")) {
             throw new BizException("IMP_001", "文件为空或格式不支持，仅支持 .xlsx");
         }
+        byte[] fileBytes = readBytes(file);
+        checkDuplicateUpload(md5Hex(fileBytes));
+
         ImportTaskDO task = new ImportTaskDO();
         task.setTenantId(DEFAULT_TENANT);
         task.setOperator(operator == null ? "" : operator);
@@ -65,7 +84,7 @@ public class ImportServiceImpl implements ImportService {
         task.setStatus("PROCESSING");
         importTaskMapper.insertTask(task);
 
-        try (InputStream in = file.getInputStream(); Workbook workbook = new XSSFWorkbook(in)) {
+        try (InputStream in = new ByteArrayInputStream(fileBytes); Workbook workbook = new XSSFWorkbook(in)) {
             Sheet sheet = workbook.getSheetAt(0);
             validateHeader(sheet.getRow(0));
             int lastRow = sheet.getLastRowNum();
@@ -202,15 +221,44 @@ public class ImportServiceImpl implements ImportService {
         };
     }
 
+    private byte[] readBytes(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (Exception e) {
+            LOGGER.error("read upload file failed, fileName={}", file.getOriginalFilename(), e);
+            throw new BizException("IMP_004", "文件读取异常");
+        }
+    }
+
+    /**
+     * 同文件 MD5 30s 内重复上传提示（design.md §5.2.3.1）。
+     */
+    private void checkDuplicateUpload(String md5) {
+        long now = System.currentTimeMillis();
+        recentUploads.entrySet().removeIf(e -> now - e.getValue() > DUPLICATE_WINDOW_MILLIS);
+        Long previous = recentUploads.putIfAbsent(md5, now);
+        if (previous != null && now - previous <= DUPLICATE_WINDOW_MILLIS) {
+            throw new BizException("IMP_006", "同文件 30s 内重复上传，已存在进行中/完成批次");
+        }
+    }
+
+    private String md5Hex(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            // MD5 为 JDK 标准算法，理论上不会发生
+            throw new IllegalStateException("MD5 algorithm unavailable", e);
+        }
+    }
+
     private Date parseHireDate(String text) {
         if (!StringUtils.hasText(text)) {
             return null;
         }
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            sdf.setLenient(false);
-            return sdf.parse(text);
-        } catch (java.text.ParseException e) {
+            LocalDate date = LocalDate.parse(text, HIRE_DATE_FORMATTER);
+            return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        } catch (DateTimeParseException e) {
             throw new BizException("IMP_ROW", "入职日期格式非法");
         }
     }

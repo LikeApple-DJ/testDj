@@ -1,5 +1,6 @@
 package com.example.employeeboard.whitelist;
 
+import com.example.employeeboard.common.BizException;
 import com.example.employeeboard.common.PageResult;
 import com.example.employeeboard.common.Result;
 import com.example.employeeboard.common.UserContext;
@@ -31,7 +32,7 @@ public class WhitelistController {
         String empNo = req.get("empNo");
         String userName = req.get("userName");
         if (empNo == null || empNo.isBlank() || userName == null || userName.isBlank()) {
-            throw new com.example.employeeboard.common.BizException("WL_003", "empNo/userName 必填");
+            throw new BizException("WL_003", "empNo/userName 必填");
         }
         whitelistService.add(empNo, userName, req.get("remark"), UserContext.getCurrentEmpNo());
         return Result.ok(Boolean.TRUE);

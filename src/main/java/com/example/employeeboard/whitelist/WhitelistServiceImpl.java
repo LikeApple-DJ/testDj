@@ -5,6 +5,7 @@ import com.example.employeeboard.common.PageResult;
 import com.example.employeeboard.whitelist.mapper.WhitelistMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -52,7 +53,8 @@ public class WhitelistServiceImpl implements WhitelistService {
         // 软删后重新添加：唯一索引冲突时复活原记录
         try {
             whitelistMapper.insert(record);
-        } catch (org.springframework.dao.DuplicateKeyException e) {
+        } catch (DuplicateKeyException e) {
+            LOGGER.warn("whitelist duplicate key, revive soft-deleted record, empNo={}", empNo);
             whitelistMapper.revive(record);
         }
         LOGGER.info("whitelist added, empNo={}, operator={}", empNo, createdBy);
