@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dtazziboot.tools.dao.mapper.InvokeLogMapper">
+
+    <resultMap id="trendPointMap" type="com.dtazziboot.tools.model.dto.TrendPoint">
+        <result column="timePoint" property="time"/>
+        <result column="cnt" property="count"/>
+    </resultMap>
+
+    <resultMap id="distributionMap" type="com.dtazziboot.tools.model.dto.DistributionItem">
+        <result column="dimKey" property="key"/>
+        <result column="cnt" property="count"/>
+    </resultMap>
+
+    <sql id="invokeFilter">
+        <where>
+            <if test="apiCode != null and apiCode != ''">
+                AND api_code = #{apiCode}
+            </if>
+            <if test="start != null">
+                AND invoke_time &gt;= #{start}
+            </if>
+            <if test="end != null">
+                AND invoke_time &lt; #{end}
+            </if>
+        </where>
+    </sql>
+
+    <select id="listTrend" resultMap="trendPointMap">
+        SELECT DATE_FORMAT(invoke_time, '%Y-%m-%d') AS timePoint,
+               COUNT(*) AS cnt
+        FROM api_invoke_log
+        <include refid="invokeFilter"/>
+        GROUP BY DATE_FORMAT(invoke_time, '%Y-%m-%d')
+        ORDER BY timePoint ASC
+    </select>
+
+    <select id="listDistributionByType" resultMap="distributionMap">
+        SELECT person_type AS dimKey, COUNT(*) AS cnt
+        FROM api_invoke_log
+        <include refid="invokeFilter"/>
+        GROUP BY person_type
+        ORDER BY cnt DESC
+    </select>
+
+    <select id="listDistributionByLevel" resultMap="distributionMap">
+        SELECT person_level AS dimKey, COUNT(*) AS cnt
+        FROM api_invoke_log
+        <include refid="invokeFilter"/>
+        GROUP BY person_level
+        ORDER BY cnt DESC
+    </select>
+
+    <select id="listDistributionByDept" resultMap="distributionMap">
+        SELECT person_dept AS dimKey, COUNT(*) AS cnt
+        FROM api_invoke_log
+        <include refid="invokeFilter"/>
+        GROUP BY person_dept
+        ORDER BY cnt DESC
+    </select>
+</mapper>
