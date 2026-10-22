@@ -1,0 +1,16 @@
+{
+  "run_id": "DEV-d885ee0d-78e2-11f1-8f3f-75954cb1c56f-1b6b013d-047e-4918-9ba2-c4448230068b",
+  "stage": "review",
+  "job_name": "代码评审",
+  "blocker_count": 3,
+  "p1_count": 2,
+  "p2_count": 5,
+  "merge_advice": "修复后合并",
+  "report": ".agents/20261022-开发一个人员看板_有入口记录员工的基本信/cr_report.md",
+  "blockers": [
+    "G8.5 AuthInterceptor.java:31-34 白名单拒绝路径 ThreadLocal 未清理",
+    "S9.1 application.yml 数据库口令 root/root 硬编码",
+    "REQ-2/W06 EmployeeServiceImpl.java:150 recentImport 恒为 null"
+  ],
+  "ts": "2026-10-22T00:00:00+00:00"
+}
