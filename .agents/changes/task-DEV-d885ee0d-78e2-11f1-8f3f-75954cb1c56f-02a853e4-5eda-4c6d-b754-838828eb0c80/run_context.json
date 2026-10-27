@@ -34,5 +34,6 @@
     "artifacts": [
       ".agents/20261023-分别写三个接口helloworld_哈希/dima.md"
     ]
-  }
+  },
+  "blocker_count": 1
 }
