@@ -33,6 +33,9 @@ public class ExportService {
 
     public ExportFile export(String format, String page, List<Map<String, Object>> rows)
         throws Exception {
+        if (format == null || format.isBlank()) {
+            throw new IllegalArgumentException("unsupported format: " + format);
+        }
         return switch (format.toLowerCase(Locale.ROOT)) {
             case "json" -> new ExportFile(
                 objectMapper.writeValueAsBytes(rows == null ? List.of() : rows),

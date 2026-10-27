@@ -40,6 +40,9 @@ public class MetricsService {
         if (chartType == null || !CHART_TYPES.contains(chartType)) {
             throw new IllegalArgumentException("unsupported chartType: " + chartType);
         }
+        if (!"line".equals(chartType) && "time".equals(dimension)) {
+            throw new IllegalArgumentException("dimension time 仅支持 chartType=line");
+        }
         List<MetricsCollector.Event> events = collector.all();
         return switch (chartType) {
             case "pie" -> pie(dimension, events);

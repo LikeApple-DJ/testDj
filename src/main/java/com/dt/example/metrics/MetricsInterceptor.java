@@ -20,6 +20,9 @@ public class MetricsInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
+        if (ex != null || response.getStatus() < 200 || response.getStatus() >= 300) {
+            return;
+        }
         String caller = request.getHeader(CALLER_HEADER);
         if (caller == null || caller.isBlank()) {
             caller = "anonymous";
