@@ -6,6 +6,7 @@ package com.example.algorithm;
  * <p>提供 int 数组的升序排序，算法时间复杂度 O(n²)，空间复杂度 O(1)。</p>
  *
  * @author AiWork
+ * @date 2026/10/30
  */
 public final class BubbleSortUtil {
 
